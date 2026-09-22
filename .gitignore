@@ -20,3 +20,14 @@ venv/
 # IDE
 .idea/
 .vscode/
+
+# Raw collected job data
+data/raw/*
+!data/raw/.gitkeep
+
+# Private user data
+data/private/*
+!data/private/.gitkeep
+!data/private/resumes/
+data/private/resumes/*
+!data/private/resumes/.gitkeep
