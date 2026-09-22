@@ -2970,6 +2970,30 @@ export default function DashboardClient({
   }
 
 
+  async function handleManualOpportunitySaved() {
+    const token =
+      await getAccessToken();
+
+
+    if (!token) {
+      throw new Error(
+        "Your session has expired."
+      );
+    }
+
+
+    await Promise.all([
+      loadOpportunities(
+        token
+      ),
+
+      loadOpportunityAnalytics(
+        token
+      ),
+    ]);
+  }
+
+
   async function loadLatestResults(
     token: string
   ) {
@@ -5135,6 +5159,9 @@ export default function DashboardClient({
         }
         onSearch={
           handleSearch
+        }
+        onOpportunitySaved={
+          handleManualOpportunitySaved
         }
         userEmail={
           userEmail

@@ -177,6 +177,12 @@ type OpportunityResponse = {
 };
 
 
+type ManualJobImportProps = {
+  onOpportunitySaved?:
+    () => Promise<void>;
+};
+
+
 function fitLabel(
   status: string
 ) {
@@ -243,7 +249,9 @@ function fitClassName(
 }
 
 
-export function ManualJobImport() {
+export function ManualJobImport({
+  onOpportunitySaved,
+}: ManualJobImportProps) {
   const [
     open,
     setOpen,
@@ -768,6 +776,17 @@ export function ManualJobImport() {
       setOpportunity(
         data as OpportunityResponse
       );
+
+
+      if (onOpportunitySaved) {
+        try {
+          await onOpportunitySaved();
+        } catch {
+          // The role was saved successfully.
+          // A later dashboard refresh can
+          // recover if this UI refresh fails.
+        }
+      }
 
     } catch (err) {
       setError(

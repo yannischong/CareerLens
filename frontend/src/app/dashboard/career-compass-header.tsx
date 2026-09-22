@@ -64,6 +64,8 @@ type CareerCompassHeaderProps = {
     event:
       FormEvent<HTMLFormElement>
   ) => void;
+  onOpportunitySaved:
+    () => Promise<void>;
 };
 
 
@@ -82,6 +84,7 @@ export function CareerCompassHeader({
   onQueryChange,
   onLocationChange,
   onSearch,
+  onOpportunitySaved,
 }: CareerCompassHeaderProps) {
   const router =
     useRouter();
@@ -527,7 +530,11 @@ export function CareerCompassHeader({
           />
 
 
-          <ManualJobImport />
+          <ManualJobImport
+            onOpportunitySaved={
+              onOpportunitySaved
+            }
+          />
 
         </div>
 
