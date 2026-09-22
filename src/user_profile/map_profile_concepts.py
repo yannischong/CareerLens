@@ -1,12 +1,10 @@
 import argparse
+import os
 import re
 
 from functools import lru_cache
 
 from dotenv import load_dotenv
-from sentence_transformers import (
-    SentenceTransformer,
-)
 from sqlalchemy import text
 
 from src.collection.database import (
@@ -150,10 +148,36 @@ CANDIDATE_CONCEPT_ALIASES = {
 load_dotenv()
 
 
+LIGHTWEIGHT_MODE = (
+    os.getenv(
+        "LIGHTWEIGHT_MODE",
+        "false",
+    )
+    .strip()
+    .lower()
+    in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+)
+
+
 @lru_cache(
     maxsize=1
 )
 def get_model():
+    if LIGHTWEIGHT_MODE:
+        return None
+
+    try:
+        from sentence_transformers import (
+            SentenceTransformer,
+        )
+    except ImportError:
+        return None
+
     return SentenceTransformer(
         MODEL_NAME
     )
@@ -1064,22 +1088,27 @@ def map_profile_concepts(
     model = get_model()
 
 
-    concept_names = [
-        concept[
-            "canonical_name"
+    concept_embeddings = None
+
+
+    if model is not None:
+
+        concept_names = [
+            concept[
+                "canonical_name"
+            ]
+
+            for concept
+            in concepts
         ]
 
-        for concept
-        in concepts
-    ]
 
-
-    concept_embeddings = (
-        model.encode(
-            concept_names,
-            normalize_embeddings=True,
+        concept_embeddings = (
+            model.encode(
+                concept_names,
+                normalize_embeddings=True,
+            )
         )
-    )
 
 
     confirmed_claims = 0
@@ -1255,7 +1284,11 @@ def map_profile_concepts(
         )
 
 
-        if not run_semantic:
+        if (
+            model is None
+            or
+            not run_semantic
+        ):
             continue
 
 
@@ -1499,6 +1532,10 @@ def map_profile_concepts(
 
 
                 candidate_evidence += 1
+
+
+        if model is None:
+            continue
 
 
         eligible_indexes = (
