@@ -363,7 +363,7 @@ export function CareerCompassHeader({
               "italic",
           }}
         >
-          Stop guessing what companies look for in your resume.
+          Pass AI resume screening with confidence.
         </p>
 
 
