@@ -1,6 +1,5 @@
 pandas
 numpy
-jupyter
 requests
 python-dotenv
 SQLAlchemy
