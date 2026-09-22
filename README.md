@@ -25,13 +25,7 @@ This keeps the analysis interpretable and avoids presenting uncertain screening 
 
 ## Live Application
 
-**CareerCompass**
-
 https://careercompass-three-rosy.vercel.app
-
-**Backend API**
-
-https://careercompass-api-2v4r.onrender.com
 
 The deployed application supports:
 
@@ -1219,27 +1213,21 @@ Supabase Storage
 
 ---
 
-# Production Lightweight Mode
+# Production Matching Mode
 
-The full local CareerCompass environment supports:
+CareerCompass supports different matching configurations for local development and production deployment.
 
-```text
-sentence-transformers
-PyTorch
-all-MiniLM-L6-v2
-```
+The full local environment supports semantic matching using:
 
-The free Render backend has a limited memory allocation.
+- Sentence Transformers
+- PyTorch
+- `all-MiniLM-L6-v2`
 
-Loading PyTorch and Sentence Transformers exceeded the available production memory during initial deployment.
+The deployed environment uses:
 
-CareerCompass therefore supports:
+`LIGHTWEIGHT_MODE=true`
 
-```text
-LIGHTWEIGHT_MODE=true
-```
-
-in production.
+to reduce runtime memory requirements while retaining the core matching pipeline.
 
 ---
 
@@ -1543,17 +1531,16 @@ Client-supplied user IDs are not trusted as proof of ownership.
 
 ---
 
-# User Isolation
+# User-Scoped Data Access
 
-CareerCompass was tested with multiple accounts.
+CareerCompass scopes user data to the authenticated Supabase account.
 
-A second authenticated user:
+Production smoke testing with separate accounts confirmed that one test account could not access another account's:
 
-* cannot access the first user's resume
-* cannot access the first user's opportunities
-* cannot access the first user's application events
-* cannot access the first user's Career Insights
-* receives a separate private workspace
+- resume
+- opportunities
+- application events
+- Career Insights
 
 ---
 
@@ -1779,16 +1766,7 @@ The lightweight Render deployment uses:
 requirements-render.txt
 ```
 
-The production requirements intentionally exclude:
-
-```text
-sentence-transformers
-PyTorch
-Jupyter
-CUDA libraries
-```
-
-to remain within the memory constraints of the free backend host.
+The production requirements exclude heavyweight development and semantic-model dependencies that are not required in lightweight production mode.
 
 ---
 
@@ -1937,66 +1915,17 @@ Supabase independently hosts:
 
 # Production Validation
 
-The deployed CareerCompass application has been smoke-tested across its major workflows.
+The deployed application has been smoke-tested across the core user workflow, including:
 
-Validated production flows include:
-
-```text
-Guest dashboard
-✓
-
-Account creation
-✓
-
-Login
-✓
-
-Dark-mode authentication UI
-✓
-
-User isolation
-✓
-
-Resume upload
-✓
-
-Resume replacement
-✓
-
-Resume persistence after refresh
-✓
-
-Manual job URL import
-✓
-
-Manual resume comparison
-✓
-
-Save manual role to applications
-✓
-
-Immediate application-list refresh
-✓
-
-Application stage updates
-✓
-
-Application notes/events
-✓
-
-Application priority
-✓
-
-Application persistence
-✓
-
-Career Insights
-✓
-
-Live provider search
-✓
-```
-
+- guest and authenticated dashboard access
+- account creation and login
+- user-scoped data access
+- resume upload and replacement
+- manual job import
+- resume comparison
+- application tracking and events
+- Career Insights
+- live provider search
 ---
 
 # Search Quota
