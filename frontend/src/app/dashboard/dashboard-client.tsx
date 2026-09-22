@@ -7605,7 +7605,7 @@ export default function DashboardClient({
                 }}
                 className="mt-2 text-left text-sm font-semibold text-[#0A66C2] hover:underline"
               >
-                Don&apos;t see the role you want? Paste a job listing link manually and tailor your resume for it
+                Don&apos;t see the role you want? CLICK HERE and paste a job listing link to tailor your resume for it
               </button>
 
             </div>

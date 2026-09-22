@@ -848,7 +848,7 @@ export function ManualJobImport({
             ? "Close job link"
             : (
               "Don’t see the role you want? "
-              + "Paste a job listing link manually and tailor your resume for it"
+              + "CLICK HERE and paste a job listing link to tailor your resume for it"
             )
         }
       </button>
