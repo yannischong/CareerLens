@@ -1,46 +1,45 @@
 import {
-    redirect,
-  } from "next/navigation";
+  createClient,
+} from "@/lib/supabase/server";
 
-  import {
-    createClient,
-  } from "@/lib/supabase/server";
+import DashboardClient
+  from "./dashboard-client";
 
-  import DashboardClient
-    from "./dashboard-client";
-
-
-  export default async function DashboardPage() {
-    const supabase =
-      await createClient();
+import GuestDashboard
+  from "./guest-dashboard";
 
 
-    const {
-      data: {
-        user,
-      },
-    } =
-      await supabase.auth
-        .getUser();
+export default async function DashboardPage() {
+  const supabase =
+    await createClient();
 
 
-    if (!user) {
-      redirect(
-        "/login"
-      );
-    }
+  const {
+    data: {
+      user,
+    },
+  } =
+    await supabase.auth
+      .getUser();
 
 
+  if (!user) {
     return (
-      <main className="min-h-screen bg-slate-50">
-
-        <DashboardClient
-          userEmail={
-            user.email
-            ?? ""
-          }
-        />
-
-      </main>
+      <GuestDashboard />
     );
   }
+
+
+  return (
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+
+      <DashboardClient
+        userEmail={
+          user.email
+          ?? ""
+        }
+      />
+
+    </main>
+  );
+}

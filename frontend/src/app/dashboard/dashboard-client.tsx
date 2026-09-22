@@ -23,6 +23,10 @@ import {
   ApplicationResumeComparison,
 } from "./application-resume-comparison";
 
+import {
+  LoadingSpinner,
+} from "./loading-spinner";
+
 type Profile = {
   profile_id: number;
   user_id: string;
@@ -1943,15 +1947,21 @@ function SkillGapPanel({
           Skill Trends
         </h2>
 
-        <p
+        <div
           className={
-            "mt-2 text-sm "
-            + "text-gray-500"
+            "mt-3 flex items-center gap-2 "
+            + "text-sm text-gray-500"
           }
         >
-          Analysing profile support
-          across job requirements...
-        </p>
+          <LoadingSpinner
+            label="Analysing skill trends"
+          />
+
+          <span>
+            Analysing profile support
+            across job requirements...
+          </span>
+        </div>
       </section>
     );
   }
@@ -5055,9 +5065,22 @@ export default function DashboardClient({
     loading
   ) {
     return (
-      <p className="text-gray-600">
-        Loading dashboard...
-      </p>
+      <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="flex max-w-md flex-col items-center rounded-2xl border border-slate-200 bg-white px-8 py-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <LoadingSpinner
+            className="h-9 w-9 text-[#0A66C2]"
+            label="Loading your CareerCompass workspace"
+          />
+
+          <p className="mt-4 font-semibold text-slate-900 dark:text-white">
+            Loading your workspace...
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Getting your profile, applications and latest results ready. This can take a little longer after a period of inactivity.
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -5737,8 +5760,18 @@ export default function DashboardClient({
                                 === opportunity.opportunity_id
                               }
 
-                              className="rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                             >
+
+                              {
+                                updatingOpportunityId
+                                === opportunity.opportunity_id
+                                && (
+                                  <LoadingSpinner
+                                    label="Updating application stage"
+                                  />
+                                )
+                              }
 
                               {
                                 updatingOpportunityId
@@ -5764,8 +5797,18 @@ export default function DashboardClient({
                                 === opportunity.opportunity_id
                               }
 
-                              className="rounded border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center justify-center gap-2 rounded border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
+
+                              {
+                                updatingOpportunityId
+                                === opportunity.opportunity_id
+                                && (
+                                  <LoadingSpinner
+                                    label="Saving opportunity details"
+                                  />
+                                )
+                              }
 
                               {
                                 updatingOpportunityId
@@ -6013,8 +6056,18 @@ export default function DashboardClient({
                               === opportunity.opportunity_id
                             }
 
-                            className="mt-4 rounded bg-[#0A66C2] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-4 inline-flex items-center justify-center gap-2 rounded bg-[#0A66C2] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                           >
+                            {
+                              updatingOpportunityId
+                              === opportunity.opportunity_id
+                              && (
+                                <LoadingSpinner
+                                  label="Saving application details"
+                                />
+                              )
+                            }
+
                             {
                               updatingOpportunityId
                               === opportunity.opportunity_id
@@ -6204,8 +6257,18 @@ export default function DashboardClient({
                               === opportunity.opportunity_id
                             }
 
-                            className="mt-4 rounded bg-[#0A66C2] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-4 inline-flex items-center justify-center gap-2 rounded bg-[#0A66C2] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                           >
+                            {
+                              savingEventOpportunityId
+                              === opportunity.opportunity_id
+                              && (
+                                <LoadingSpinner
+                                  label="Saving activity event"
+                                />
+                              )
+                            }
+
                             {
                               savingEventOpportunityId
                               === opportunity.opportunity_id
@@ -6236,8 +6299,18 @@ export default function DashboardClient({
                       === opportunity.opportunity_id
                     }
 
-                    className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
+                    {
+                      loadingHistoryOpportunityId
+                      === opportunity.opportunity_id
+                      && (
+                        <LoadingSpinner
+                          label="Loading opportunity activity"
+                        />
+                      )
+                    }
+
                     {
                       loadingHistoryOpportunityId
                       === opportunity.opportunity_id
@@ -6264,8 +6337,18 @@ export default function DashboardClient({
                       === opportunity.opportunity_id
                     }
 
-                    className="rounded border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
+                    {
+                      deletingOpportunityId
+                      === opportunity.opportunity_id
+                      && (
+                        <LoadingSpinner
+                          label="Removing application"
+                        />
+                      )
+                    }
+
                     {
                       deletingOpportunityId
                       === opportunity.opportunity_id
@@ -6340,9 +6423,15 @@ export default function DashboardClient({
                         === opportunity.opportunity_id
                         ? (
 
-                          <p className="mt-4 text-sm text-gray-500">
-                            Loading history...
-                          </p>
+                          <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                            <LoadingSpinner
+                              label="Loading opportunity history"
+                            />
+
+                            <span>
+                              Loading history...
+                            </span>
+                          </div>
 
                         )
                         : (
@@ -7384,8 +7473,21 @@ export default function DashboardClient({
               || !selectedFile
             }
 
-            className="rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
           >
+            {
+              uploading
+              && (
+                <LoadingSpinner
+                  label={
+                    resumes[0]
+                      ? "Replacing resume"
+                      : "Processing resume"
+                  }
+                />
+              )
+            }
+
             {
               uploading
                 ? (
@@ -7865,8 +7967,18 @@ export default function DashboardClient({
                                   === job.job_id
                                 }
 
-                                className="rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                               >
+                                {
+                                  trackingJobId
+                                  === job.job_id
+                                  && (
+                                    <LoadingSpinner
+                                      label="Saving job to My Applications"
+                                    />
+                                  )
+                                }
+
                                 {
                                   trackingJobId
                                   === job.job_id

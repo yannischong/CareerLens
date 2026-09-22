@@ -28,6 +28,10 @@ import {
   CareerCompassHelp,
 } from "./career-compass-help";
 
+import {
+  LoadingSpinner,
+} from "./loading-spinner";
+
 
 export type DashboardView =
   | "jobs"
@@ -86,6 +90,14 @@ export function CareerCompassHeader({
   const [
     helpOpen,
     setHelpOpen,
+  ] = useState(
+    false
+  );
+
+
+  const [
+    signingOut,
+    setSigningOut,
   ] = useState(
     false
   );
@@ -211,19 +223,31 @@ export function CareerCompassHeader({
 
 
   async function handleSignOut() {
+    setSigningOut(
+      true
+    );
+
+
     const supabase =
       createClient();
 
 
-    await supabase.auth
-      .signOut();
+    try {
+      await supabase.auth
+        .signOut();
 
 
-    router.push(
-      "/login"
-    );
+      router.push(
+        "/login"
+      );
 
-    router.refresh();
+      router.refresh();
+
+    } finally {
+      setSigningOut(
+        false
+      );
+    }
   }
 
 
@@ -263,9 +287,25 @@ export function CareerCompassHeader({
             onClick={
               handleSignOut
             }
-            className="rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+            disabled={
+              signingOut
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign out
+            {
+              signingOut
+                && (
+                  <LoadingSpinner
+                    label="Signing out"
+                  />
+                )
+            }
+
+            {
+              signingOut
+                ? "Signing out..."
+                : "Sign out"
+            }
           </button>
 
         </div>
@@ -443,8 +483,17 @@ export function CareerCompassHeader({
                   || remainingSearches
                     === 0
                 }
-                className="min-h-12 flex-1 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
               >
+                {
+                  searching
+                    && (
+                      <LoadingSpinner
+                        label="Searching for jobs"
+                      />
+                    )
+                }
+
                 {
                   searching
                     ? "Searching..."

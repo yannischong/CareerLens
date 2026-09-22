@@ -662,7 +662,7 @@ Manage the user's current resume and profile information.
 
 ## 27. Built-In Help Guide
 
-CareerCompass includes an in-product **Need help?** guide.
+CareerCompass includes an in-product **How to use?** guide.
 
 The guide explains:
 

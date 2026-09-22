@@ -9,6 +9,10 @@ import {
   createClient,
 } from "@/lib/supabase/client";
 
+import {
+  LoadingSpinner,
+} from "./loading-spinner";
+
 
 type ManualJobRequirement = {
   requirement_type: string;
@@ -884,8 +888,17 @@ export function ManualJobImport() {
                   disabled={
                     loading
                   }
-                  className="rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                 >
+                  {
+                    loading
+                      && (
+                        <LoadingSpinner
+                          label="Reading job listing"
+                        />
+                      )
+                  }
+
                   {
                     loading
                       ? "Reading listing..."
@@ -1060,8 +1073,17 @@ export function ManualJobImport() {
                         disabled={
                           importing
                         }
-                        className="mt-4 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                       >
+                        {
+                          importing
+                            && (
+                              <LoadingSpinner
+                                label="Adding role to CareerCompass"
+                              />
+                            )
+                        }
+
                         {
                           importing
                             ? "Adding..."
@@ -1104,8 +1126,17 @@ export function ManualJobImport() {
                             disabled={
                               analyzing
                             }
-                            className="rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                           >
+                            {
+                              analyzing
+                                && (
+                                  <LoadingSpinner
+                                    label="Comparing with your resume"
+                                  />
+                                )
+                            }
+
                             {
                               analyzing
                                 ? "Comparing..."
@@ -1125,8 +1156,18 @@ export function ManualJobImport() {
                                 opportunity
                               )
                             }
-                            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
+                            {
+                              saving
+                              && !opportunity
+                              && (
+                                <LoadingSpinner
+                                  label="Saving to My Applications"
+                                />
+                              )
+                            }
+
                             {
                               opportunity
                                 ? "Saved to My Applications"

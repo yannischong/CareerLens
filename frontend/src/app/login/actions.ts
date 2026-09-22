@@ -39,10 +39,13 @@ export async function signup(formData: FormData) {
 
   const email = formData.get("email");
   const password = formData.get("password");
+  const confirmPassword =
+    formData.get("confirmPassword");
 
   if (
     typeof email !== "string" ||
-    typeof password !== "string"
+    typeof password !== "string" ||
+    typeof confirmPassword !== "string"
   ) {
     redirect("/login?error=Invalid+signup+details");
   }
@@ -50,6 +53,12 @@ export async function signup(formData: FormData) {
   if (password.length < 8) {
     redirect(
       "/login?error=Password+must+be+at+least+8+characters"
+    );
+  }
+
+  if (password !== confirmPassword) {
+    redirect(
+      "/login?error=Passwords+do+not+match"
     );
   }
 
