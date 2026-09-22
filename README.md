@@ -1,273 +1,612 @@
+````markdown
 # CareerCompass
 
-CareerCompass is a job-search, resume intelligence, and application management platform designed to help job seekers improve their chances of getting past early resume screening.
+CareerCompass is a full-stack career intelligence and application management platform that helps users discover relevant job opportunities, understand how their resume aligns with job requirements, tailor their application strategy, and manage the application process from discovery through follow-up.
 
-Its main feature is a transparent resume-to-job comparison system. CareerCompass reads a job description, extracts what the employer appears to be looking for, compares those requirements against the user's current resume, and explains which requirements are supported, which are not currently shown, and which still need review.
+The project addresses two related problems in modern job searching:
 
-Beyond resume screening, CareerCompass also helps users discover or import jobs, track applications, manage hiring-stage events, review eligibility signals, and identify recurring skill gaps across the roles they are interested in.
+1. Finding relevant opportunities across fragmented job sources.
+2. Understanding what employers are looking for in a resume, particularly as automated and AI-assisted screening tools are increasingly used before or alongside human review.
 
+CareerCompass converts unstructured job listings and resume content into structured data that can be searched, compared, aggregated, and translated into actionable career insights.
+
+Rather than producing an opaque "chance of getting hired" score, CareerCompass separates:
+
+- Search Relevance
+- Data Quality
+- Profile Fit
+- Eligibility
+- Resume Evidence
+- Career Insights
+
+This keeps the analysis interpretable and avoids presenting uncertain screening outcomes as predictions.
 
 ---
 
-## Why CareerCompass?
+## Live Application
 
-Job seekers increasingly face two connected challenges:
+**CareerCompass**
 
-1. **Finding relevant opportunities**
-2. **Getting past initial resume screening**, especially as employers increasingly use AI-assisted and automated tools to filter and prioritise applications before human review
+https://careercompass-three-rosy.vercel.app
 
-CareerCompass is designed to support both:
+**Backend API**
+
+https://careercompass-api-2v4r.onrender.com
+
+The deployed application supports:
+
+- account creation and authentication
+- private user workspaces
+- job discovery
+- manual job URL import
+- resume upload and replacement
+- job requirement extraction
+- resume-to-job comparison
+- application tracking
+- application events
+- recurring skill-gap analysis
+- multi-user data isolation
+
+---
+
+# Core Workflow
+
+CareerCompass is designed around the full job-search workflow:
 
 ```text
-Discover Relevant Roles
-        ↓
-Understand Requirements
-        ↓
-Compare Against Resume
-        ↓
-Identify Missing or Weakly Shown Evidence
-        ↓
-Improve the Application
-        ↓
+Discover
+   ↓
+Evaluate
+   ↓
+Prepare
+   ↓
 Apply
-        ↓
-Track Progress
-```
+   ↓
+Track
+   ↓
+Follow Up
+   ↓
+Analyse
+   ↓
+Improve
+````
 
-Its primary goal is to help job seekers find suitable opportunities while making early resume screening less opaque, so they can better understand what employers appear to be looking for and whether their current resume demonstrates those requirements clearly.
+Users can:
 
-## Core Product Idea
-
-CareerCompass deliberately separates signals that are often incorrectly combined into one vague "match score".
-
-### Search Relevance
-
-How closely a job matches the role, keywords, location, or other search criteria entered by the user.
-
-### Resume Comparison
-
-Whether CareerCompass can find supporting evidence in the user's current resume for requirements extracted from the job description.
-
-### Eligibility
-
-Whether known eligibility-related conditions appear to be satisfied based on available profile information.
-
-### Application Progress
-
-Where the user currently is in the hiring process.
-
-These signals answer different questions and should not be interpreted as hiring probabilities.
+* search for job opportunities by role and location
+* import a public job listing using its URL
+* upload one current resume
+* extract structured requirements from job descriptions
+* compare job requirements against resume evidence
+* identify requirements already supported by their resume
+* identify requirements not currently shown on their resume
+* save opportunities
+* track application stages
+* record deadlines, interviews, assessments and follow-ups
+* compare their current resume against previously saved applications
+* identify recurring skill gaps across roles
+* use these insights to improve future applications
 
 ---
 
-## End-to-End Workflow
+# Why CareerCompass?
 
-```text
-Create Account
-      ↓
-Upload Resume
-      ↓
-Search for Jobs
-or Import a Job URL
-      ↓
-Normalise Job Data
-      ↓
-Extract Job Requirements
-      ↓
-Map Requirements to Concepts
-      ↓
-Compare Requirements with Resume
-      ↓
-Review:
-Supported / Not Shown / Needs Review
-      ↓
-Save to My Applications
-      ↓
-Track Application Progress
-      ↓
-Record OA / Interview / Follow-Up / Offer
-      ↓
-Review Career Insights
-      ↓
-Improve Future Applications
-```
+Job searching is often fragmented across several different activities.
+
+A typical applicant may use:
+
+* job boards to discover roles
+* spreadsheets to track applications
+* PDFs for resumes
+* notes for interview progress
+* job descriptions for skill requirements
+* separate tools for resume analysis
+
+This creates several problems.
+
+## 1. Job discovery and resume preparation are disconnected
+
+Finding a role does not immediately tell the applicant:
+
+* which requirements matter
+* which requirements are already supported by their resume
+* which important requirements are not clearly demonstrated
+
+CareerCompass connects the job listing directly to the user's current resume.
 
 ---
 
-# Main Features
+## 2. Job descriptions are largely unstructured
 
-## 1. Authentication and User Accounts
+A listing may contain information about:
 
-CareerCompass supports authenticated user accounts.
-
-Each user receives their own CareerCompass profile, and user-owned information is scoped to the authenticated account.
-
-The platform follows the structure:
-
-```text
-Authentication
-      ↓
-User Account
-      ↓
-User Profile
-      ↓
-Current Resume
-      ↓
-Applications
-```
-
-Profile ownership is determined server-side rather than trusting profile identifiers sent by the browser.
-
----
-
-## 2. Job Search
-
-Users can search for job opportunities through supported job-data providers.
-
-CareerCompass collects listings from multiple sources and normalises them into a common job format.
-
-Normalised information can include:
-
-* job title
-* company
-* location
-* employment type
-* posting URL
-* posting date
-* closing date
-* salary text
-* job description
-* requirements
-* source
-* source job identifier
-
-Search results are saved automatically so users can return to them without repeating the same search.
-
----
-
-## 3. Search Quota Protection
-
-CareerCompass includes per-user search quota controls.
-
-The current free-account workflow limits users to two provider searches while preserving previously returned results.
-
-Manual URL imports are handled separately and do not consume a provider search.
-
----
-
-## 4. Manual Job Import
-
-Users are not limited to jobs returned through CareerCompass search.
-
-If a user already has a specific opportunity in mind, they can paste a public job-listing URL into CareerCompass.
-
-The platform can attempt to:
-
-1. read the listing
-2. extract job information
-3. identify the job description
-4. extract job requirements
-5. normalise requirement concepts
-6. add the role to CareerCompass
-7. compare the role against the user's resume
-8. save the role to My Applications
-
-CareerCompass supports generic public job pages and structured job-platform sources where available, including Lever listings.
-
-If a page cannot be read automatically, the job description can be pasted manually.
-
----
-
-## 5. Job Data Quality Checks
-
-Not every job listing contains enough information for a meaningful comparison.
-
-CareerCompass performs description-quality checks before running deeper analysis.
-
-Listings with insufficient information can be flagged rather than producing misleading resume comparisons.
-
----
-
-# Requirement Intelligence
-
-## 6. Requirement Extraction
-
-CareerCompass extracts meaningful requirements from job descriptions.
-
-Examples include:
-
-* skills
+* technical skills
 * tools
-* programming languages
-* domain knowledge
 * education
-* work experience
+* experience
 * certifications
-* licences
-* professional registrations
-* security-clearance requirements
-* physical requirements
-* other role-specific conditions
+* languages
+* domain knowledge
+* eligibility
+* preferred qualifications
 
-The extracted requirements are stored separately from the original job description so they can be analysed individually.
+CareerCompass extracts these into structured requirements that can be analysed programmatically.
 
 ---
 
-## 7. Requirement Concept Normalisation
+## 3. Resume feedback is often too simplistic
 
-Job descriptions frequently express the same concept in different ways.
+A single "resume score" can hide important distinctions.
 
-CareerCompass maps requirement text into reusable concepts.
+CareerCompass instead asks:
+
+```text
+Is the job relevant to the search query?
+
+Is the job description detailed enough to assess?
+
+What requirements does the employer state?
+
+Which requirements are supported by evidence in the resume?
+
+Which requirements are not currently shown?
+
+Are there explicit eligibility conditions?
+
+Which missing requirements recur across multiple roles?
+```
+
+---
+
+## 4. Missing evidence is not necessarily a missing skill
+
+CareerCompass deliberately uses wording such as:
+
+```text
+Supported by your resume
+```
+
+and:
+
+```text
+Not shown on your resume
+```
+
+rather than claiming that the user does or does not possess a skill.
+
+A resume is evidence, not a complete representation of a person.
+
+---
+
+# Product Principles
+
+CareerCompass was designed around several principles.
+
+## Evidence Over Assumptions
+
+A requirement is considered supported only when sufficient evidence can be identified in the user's resume.
+
+If evidence cannot be found, CareerCompass reports that the requirement is:
+
+```text
+Not shown on your resume
+```
+
+This does not imply that the user lacks the skill.
+
+---
+
+## Search Relevance Is Not Resume Fit
+
+A job may be highly relevant to a search such as:
+
+```text
+Data Analyst Intern
+```
+
+even if the current resume is not a strong match.
+
+CareerCompass therefore keeps:
+
+```text
+Search Relevance
+```
+
+separate from:
+
+```text
+Profile Fit
+```
+
+---
+
+## Transparent Matching
+
+CareerCompass exposes understandable categories rather than attempting to provide a single opaque hiring probability.
+
+---
+
+## Current Resume as the Source of Truth
+
+Each user maintains one current resume.
+
+When a new resume is uploaded:
+
+```text
+Existing resume
+      ↓
+Replaced
+      ↓
+New resume parsed
+      ↓
+Profile evidence rebuilt
+      ↓
+Future comparisons use latest resume
+```
+
+This prevents outdated resumes from being mixed together when assessing a role.
+
+---
+
+## Analysis Should Lead to Action
+
+CareerCompass is not intended only to display scores.
+
+The goal is to help users answer:
+
+```text
+What should I highlight?
+
+What is already demonstrated?
+
+What is missing from my resume?
+
+Which skills keep appearing across the jobs I want?
+
+Where should I focus my preparation?
+```
+
+---
+
+# Key Features
+
+## 1. Public Guest Dashboard
+
+Users who visit CareerCompass without signing in are taken to the main CareerCompass dashboard rather than directly to an authentication screen.
+
+The guest dashboard provides a preview of the product while keeping all functionality locked.
+
+Unauthenticated users can see:
+
+* CareerCompass branding
+* job search interface
+* resume upload interface
+* workspace categories
+* product workflow
+
+However:
+
+* search is disabled
+* resume upload is disabled
+* application data is unavailable
+* API-backed functionality is unavailable
+
+Users must select:
+
+```text
+Sign up / Log in
+```
+
+before using CareerCompass.
+
+---
+
+# 2. Authentication
+
+CareerCompass uses Supabase Authentication.
+
+Users can:
+
+* create an account
+* sign in
+* sign out
+* maintain their own private workspace
+
+Account creation requires:
+
+```text
+Email
+Password
+Confirm Password
+```
+
+The frontend verifies that both password fields match before submitting the signup request.
+
+The backend identifies users from their authenticated Supabase JWT rather than trusting a user ID supplied by the browser.
+
+---
+
+# 3. Job Discovery
+
+Users can search by:
+
+```text
+Role
+Location
+```
+
+Example:
+
+```text
+Role:
+Data Analyst Intern
+
+Location:
+Singapore
+```
+
+CareerCompass collects results from configured external job providers and transforms them into a common internal representation.
+
+The system handles:
+
+* provider-specific schemas
+* duplicate listings
+* inconsistent titles
+* inconsistent descriptions
+* source metadata
+* location information
+* company names
+* job URLs
+
+---
+
+# 4. Search Relevance
+
+Search results are ranked by relevance to the user's query.
+
+Search relevance answers:
+
+> How closely does this job correspond to what the user searched for?
+
+It does not answer:
+
+> How qualified is the user for this job?
+
+These are deliberately separate measurements.
+
+---
+
+## TF-IDF Ranking
+
+CareerCompass uses TF-IDF representations for:
+
+* job titles
+* job descriptions
+
+The query is compared with both.
+
+The current combined score uses:
+
+```text
+65% title similarity
+35% description similarity
+```
+
+This gives job titles greater influence because they are generally a stronger indicator of whether the role matches the requested occupation.
+
+---
+
+## Semantic Ranking
+
+The local development environment additionally supports semantic ranking using:
+
+```text
+sentence-transformers/all-MiniLM-L6-v2
+```
+
+This allows semantically related phrases to receive similarity even when they do not use identical words.
+
+---
+
+# 5. Data Quality
+
+Not every job listing contains enough information for meaningful resume analysis.
+
+CareerCompass therefore distinguishes between:
+
+```text
+searchable job
+```
+
+and:
+
+```text
+assessable job
+```
+
+A job can still be relevant to the query while lacking enough description content for reliable requirement extraction.
+
+The system currently uses a minimum description threshold when determining whether a listing contains enough information for assessment.
+
+This helps prevent:
+
+* misleading fit scores
+* requirement extraction from extremely short descriptions
+* false conclusions from incomplete listings
+
+---
+
+# 6. Manual Job URL Import
+
+Not every role a user wants will appear through CareerCompass's providers.
+
+Users can therefore paste the URL of a public job listing directly into CareerCompass.
+
+Example workflow:
+
+```text
+Public job URL
+      ↓
+Fetch page
+      ↓
+Extract listing
+      ↓
+Normalise job
+      ↓
+Extract requirements
+      ↓
+Compare with current resume
+      ↓
+Optionally save to applications
+```
+
+The manual importer supports general public job pages and includes additional handling for supported structured job platforms.
+
+---
+
+## Manual Import Security
+
+Because the backend fetches user-provided URLs, manual job import includes checks intended to reduce server-side request forgery risk.
+
+Public job URLs are processed by the backend rather than exposing provider logic directly to the browser.
+
+---
+
+# 7. Job Normalisation
+
+Jobs from different sources are transformed into a shared schema.
+
+Normalisation includes fields such as:
+
+* raw title
+* normalised title
+* raw company name
+* description
+* normalised description
+* source
+* source-specific job ID
+* job URL
+* location
+
+This provides a consistent foundation for downstream analysis.
+
+---
+
+# 8. Requirement Extraction
+
+CareerCompass converts job descriptions into structured job requirements.
+
+Requirements may include:
+
+```text
+Skills
+Tools
+Domain knowledge
+Education
+Experience
+Languages
+Certifications
+Licences
+Professional registrations
+Eligibility conditions
+```
+
+Example job description:
+
+```text
+Applicants should have experience with SQL,
+Python and data visualisation.
+Knowledge of Power BI or Tableau is preferred.
+```
+
+CareerCompass attempts to transform this into structured concepts such as:
+
+```text
+SQL
+Python
+Data visualisation
+
+Power BI OR Tableau
+```
+
+---
+
+# 9. Atomic Requirement Concepts
+
+Requirements are normalised into atomic concepts.
 
 For example:
 
 ```text
-Proficiency in SQL is required
+"Proficiency in SQL is required"
 ```
 
-can be normalised to:
+becomes:
 
 ```text
 SQL
 ```
 
-with a normalised concept key such as:
+rather than storing the entire sentence as the concept.
 
-```text
-sql
-```
+This makes it possible to compare requirements across:
 
-This helps reduce false mismatches caused by wording or sentence structure.
-
-CareerCompass supports:
-
-* direct lexical matching
-* normalised aliases
-* curated equivalent terms
-* spelling variants
-* semantic candidate matches
-* tool-name variations
-* shared requirement concepts
+* different companies
+* different wording
+* different job listings
 
 ---
 
-## 8. Logical Requirement Groups
+## Concept Types
 
-Some job requirements contain multiple skills or alternatives.
-
-For example:
+CareerCompass can classify concepts into types including:
 
 ```text
-Experience with Python and SQL
+skill
+tool
+domain_knowledge
+language
+education
+certification
+licence
+professional_registration
 ```
 
-or:
+---
+
+# 10. Concept Aliases
+
+Different organisations may describe the same capability differently.
+
+CareerCompass maintains aliases and normalisation rules.
+
+Examples include relationships such as:
 
 ```text
-Experience with Python, R, or MATLAB
+data cleansing
+↔
+data cleaning
 ```
 
-CareerCompass supports logical requirement structures including:
+and:
+
+```text
+AWS Bedrock
+↔
+Amazon Bedrock
+```
+
+Some aliases are treated as sufficiently strong equivalences to count as confirmed evidence.
+
+Other relationships are intentionally treated only as candidate matches requiring caution.
+
+---
+
+# 11. Requirement Logic
+
+Requirements are not always independent.
+
+CareerCompass supports logical requirement groups including:
 
 ```text
 ALL_OF
@@ -279,472 +618,497 @@ and:
 ANY_OF
 ```
 
-This allows comparisons to better reflect how a requirement is written instead of treating every extracted keyword independently.
-
-Open-ended groups can also be marked for review when the system should not make an overly strong conclusion.
-
----
-
-# Resume Intelligence
-
-## 9. Single Current Resume
-
-CareerCompass intentionally supports one current resume per user.
-
-This prevents evidence from multiple resume versions from being combined into a misleading profile.
-
-The model is:
+Example:
 
 ```text
-User
- ↓
-One Current Resume
- ↓
-Claims + Evidence
- ↓
-Job Comparisons
+Experience with Python and SQL
 ```
 
-If the user uploads another resume, the new resume replaces the previous one.
-
----
-
-## 10. Safe Resume Replacement
-
-CareerCompass validates and processes a replacement resume before removing the previous version.
-
-The intended replacement flow is:
+can be represented as:
 
 ```text
-New Resume
-    ↓
-Validate File
-    ↓
-Extract Text
-    ↓
-Extract Sections
-    ↓
-Extract Claims and Evidence
-    ↓
-Upload New Private File
-    ↓
-Replace Database Resume
-    ↓
-Remove Old Resume-Derived Data
-    ↓
-Rebuild Profile Concept Mapping
-    ↓
-Refresh Comparison State
-    ↓
-Remove Previous Private File
+ALL_OF
+├── Python
+└── SQL
 ```
 
-This reduces the risk of a failed upload leaving the user without a usable resume.
-
----
-
-## 11. Resume Parsing
-
-Supported resume formats include:
-
-* PDF
-* DOCX
-* TXT
-
-CareerCompass extracts textual content and separates the resume into useful sections such as:
-
-* Skills
-* Experience
-* Projects
-* Education
-* Certifications
-* Languages
-* Licences
-* Awards
-* Volunteering
-
----
-
-## 12. Resume Claims and Evidence
-
-CareerCompass distinguishes between direct claims and supporting evidence.
-
-### Claims
-
-Claims are usually short explicit statements such as:
+while:
 
 ```text
-Python
-SQL
-Power BI
-English
+Experience with Power BI or Tableau
 ```
 
-### Evidence
-
-Evidence is longer resume content demonstrating how skills or experience were applied.
-
-For example:
+can be represented as:
 
 ```text
-Built an automated reporting dashboard using Power BI and SQL.
+ANY_OF
+├── Power BI
+└── Tableau
 ```
 
-or:
+This is more accurate than treating every keyword in a job description as an independent mandatory requirement.
+
+---
+
+# 12. Resume Upload
+
+Users upload their current resume through CareerCompass.
+
+Supported document processing includes formats such as:
 
 ```text
-Developed a Python pipeline to clean and analyse transaction data.
+PDF
+DOCX
 ```
 
-This allows CareerCompass to distinguish between merely mentioning a skill and demonstrating it through experience or projects.
+Resume files are stored privately using Supabase Storage.
 
 ---
 
-## 13. Profile Concept Mapping
+# 13. Single Current Resume Model
 
-Resume claims and evidence are mapped against the shared CareerCompass requirement vocabulary.
+CareerCompass intentionally allows one active resume per profile.
 
-Matching can include:
-
-* direct lexical matches
-* aliases
-* spelling variants
-* curated candidate relationships
-* semantic similarity
-
-CareerCompass distinguishes high-confidence matches from weaker candidates instead of treating every semantic similarity as confirmed evidence.
-
----
-
-# Resume Screening Support
-
-## 14. Resume Comparison
-
-CareerCompass compares extracted job requirements against the user's current resume.
-
-Requirements are presented using understandable statuses.
-
-### Supported by your resume
-
-CareerCompass found sufficiently strong supporting evidence in the current resume.
-
-### Not shown on your resume
-
-CareerCompass did not find sufficient supporting evidence in the current resume.
-
-This does **not** mean the user does not possess the skill.
-
-It only means the current resume does not clearly demonstrate it.
-
-### Needs review
-
-CareerCompass found something potentially relevant, but the evidence is not strong enough for an automatic conclusion.
-
-The goal is to help users identify where resume tailoring may be useful without inventing qualifications they do not have.
-
----
-
-## 15. Resume Comparison for Saved Applications
-
-Resume comparison is available directly from My Applications.
-
-A user can reopen the comparison for any tracked application.
-
-The comparison is refreshed when opened so it reflects the user's current CareerCompass resume rather than relying only on an old snapshot.
-
----
-
-## 16. Search Match vs Resume Match
-
-CareerCompass deliberately avoids treating search relevance as resume fit.
-
-For example:
+When a user uploads a replacement:
 
 ```text
-Search Match: 91%
+New document parsed
+      ↓
+Existing resume identified
+      ↓
+Previous resume removed
+      ↓
+Derived evidence removed
+      ↓
+New resume stored
+      ↓
+New claims created
+      ↓
+New evidence created
+      ↓
+Profile concepts rebuilt
 ```
 
-means that the job strongly matches the user's search terms.
+The database enforces one current resume per profile.
 
-It does **not** mean that the user's resume satisfies 91% of the employer's requirements.
-
-Resume evidence is analysed separately.
+This prevents comparisons from accidentally using evidence across several outdated resumes.
 
 ---
 
-# Eligibility
+# 14. Resume Parsing
 
-## 17. Eligibility Extraction
-
-CareerCompass can identify requirements more closely related to candidate eligibility.
+CareerCompass extracts information from the uploaded resume and converts it into structured profile information.
 
 Examples include:
 
-* education requirements
-* years of experience
-* licences
-* certifications
-* professional registrations
-* other explicit eligibility conditions
+```text
+Skills
+Languages
+Experience
+Projects
+Education
+Certifications
+Other evidence
+```
 
----
-
-## 18. Candidate Eligibility Facts
-
-CareerCompass can extract relevant profile facts and compare them against job eligibility conditions.
-
-Eligibility is intentionally kept separate from general skill matching.
-
----
-
-# Application Management
-
-## 19. My Applications
-
-Users can save jobs into an application pipeline.
-
-Saved jobs can come from:
-
-* CareerCompass provider searches
-* manually imported job URLs
-
----
-
-## 20. Application Pipeline
-
-Applications can move through stages such as:
+The extracted information is divided into:
 
 ```text
+Profile Claims
+```
+
+and:
+
+```text
+Profile Evidence
+```
+
+These structures are used when comparing the user against job requirements.
+
+---
+
+# 15. Resume Concept Mapping
+
+CareerCompass maps resume evidence onto the same concept vocabulary used for job requirements.
+
+The mapper uses multiple layers.
+
+## Direct Matching
+
+Direct aliases can produce confirmed matches.
+
+Example:
+
+```text
+Job requirement:
+SQL
+
+Resume:
+Python, SQL, Tableau
+```
+
+Result:
+
+```text
+SQL → confirmed
+```
+
+---
+
+## Curated Candidate Matching
+
+Some related concepts are intentionally treated more cautiously.
+
+Example:
+
+```text
+Job requirement:
+Statistical analysis
+
+Resume:
+Analysed data for...
+```
+
+These may be surfaced as candidate evidence rather than automatically treated as proof.
+
+---
+
+## Semantic Candidates
+
+The full local version can use sentence embeddings to identify semantically related evidence.
+
+Semantic matches are intentionally treated as candidates rather than unquestionable proof.
+
+---
+
+# 16. Profile Fit
+
+Profile Fit evaluates job requirements against evidence found in the user's current resume.
+
+It answers:
+
+> How much of this job's extracted requirement set is supported by the resume?
+
+It does not represent:
+
+```text
+Probability of interview
+Probability of passing ATS
+Probability of receiving an offer
+Recruiter score
+```
+
+---
+
+# 17. Resume Comparison
+
+Users can open a resume comparison for a role.
+
+CareerCompass divides requirements into user-facing categories.
+
+## Supported by Your Resume
+
+CareerCompass identified sufficiently strong evidence corresponding to the requirement.
+
+---
+
+## Not Shown on Your Resume
+
+CareerCompass could not identify sufficient evidence for the requirement in the current resume.
+
+This wording is intentional.
+
+It does not mean:
+
+```text
+You do not know this skill.
+```
+
+It means:
+
+```text
+CareerCompass could not find evidence of this requirement
+in the resume currently being assessed.
+```
+
+---
+
+## Needs Review
+
+CareerCompass found potentially related evidence, but the relationship is not strong enough to automatically classify as confirmed.
+
+---
+
+# 18. Current-Resume Comparison for Saved Applications
+
+Resume comparison is available for saved opportunities regardless of whether the role originated from:
+
+* provider search
+* manual URL import
+
+Comparisons are generated against the user's current resume.
+
+This means that when the user improves or replaces their resume, they can reopen an older application and evaluate it against the latest version.
+
+---
+
+# 19. Eligibility
+
+Eligibility is assessed separately from profile fit.
+
+Eligibility can include explicit conditions such as:
+
+* graduation year
+* student status
+* degree requirements
+* work authorisation
+* programme requirements
+
+Separating eligibility from fit prevents a candidate from appearing highly suitable purely because their resume contains the right skills when they may not satisfy an explicit application condition.
+
+---
+
+# 20. Opportunity Management
+
+CareerCompass allows users to save and manage opportunities.
+
+Current opportunity stages include:
+
+```text
+Discovered
+Saved
 To Apply
 Applied
 Online Assessment
 Interview
 Offer
+Rejected
+Withdrawn
 Closed
 ```
 
-Internally, CareerCompass can maintain more detailed statuses including:
+Each opportunity is associated with the authenticated user's profile.
+
+---
+
+# 21. Application Records
+
+Applications can contain information such as:
+
+* resume used
+* application URL
+* application method
+* submission date
+* referral information
+* cover-letter information
+* notes
+
+---
+
+# 22. Application Events
+
+CareerCompass stores an event history for each opportunity.
+
+Supported event types include:
 
 ```text
-discovered
-saved
-to_apply
-applied
-oa
-interview
-offer
-rejected
-withdrawn
-closed
+Created
+Status change
+Note
+Deadline
+Online assessment
+Interview
+Follow-up
+Offer
+Rejection
+Withdrawal
+Other
+```
+
+This produces a chronological timeline of the user's interaction with the opportunity.
+
+---
+
+# 23. Priority and Follow-Up Management
+
+Users can assign opportunity priorities such as:
+
+```text
+Low
+Medium
+High
+```
+
+CareerCompass can also store upcoming event information to help users identify:
+
+* application deadlines
+* interviews
+* assessments
+* follow-up dates
+
+---
+
+# 24. Career Insights
+
+CareerCompass provides both tactical and strategic analysis.
+
+## Tactical Analysis
+
+For an individual job:
+
+```text
+What does this role require?
+
+What does my resume already support?
+
+What is not currently shown?
+
+What should I consider highlighting?
 ```
 
 ---
 
-## 21. Application Details
+## Strategic Analysis
 
-Users can maintain information such as:
+Across saved opportunities:
 
-* priority
-* application date
-* application URL
-* application method
-* referral status
-* cover-letter status
-* notes
-* current stage
-* follow-up information
+```text
+Which requirements keep appearing?
 
----
+Which skills repeatedly appear as gaps?
 
-## 22. Application Timeline
+Which areas may be worth learning or highlighting?
+```
 
-CareerCompass supports events associated with an opportunity.
-
-Examples include:
-
-* application submitted
-* status changed
-* deadline
-* online assessment
-* interview
-* follow-up
-* offer
-* rejection
-* withdrawal
-* note
-* other events
-
-This allows CareerCompass to function as more than a simple job bookmark list.
+This is exposed through Career Insights / Skills to Build.
 
 ---
 
-## 23. Smart Application Management
+# 25. Skill Gap Intelligence
 
-Tracked applications can include information used for sorting and prioritisation, such as:
+Recurring requirements are aggregated across the user's saved opportunities.
 
-* next event
-* next event date
-* priority
-* application stage
-* deadlines
-
-The aim is to help users understand what requires attention next.
-
----
-
-# Career Insights
-
-## 24. Skill Gap Intelligence
-
-CareerCompass analyses recurring requirement gaps across roles.
-
-Instead of viewing each job independently, users can identify requirements that repeatedly appear in opportunities they are interested in.
+This allows CareerCompass to identify patterns that would be difficult to notice by reading each job description individually.
 
 For example:
 
 ```text
-SQL appears in 8 target roles
-Power BI appears in 5 target roles
-Cloud experience appears in 4 target roles
+SQL                8 roles
+Power BI           6 roles
+Python             5 roles
+Statistics         5 roles
+Stakeholder comms  4 roles
 ```
 
-This can help users decide what skills, tools, or experiences may be worth strengthening over time.
-
----
-
-## 25. Job-Specific vs Recurring Insights
-
-CareerCompass distinguishes between:
-
-### Job-specific gaps
-
-Useful when preparing for one particular application.
-
-### Recurring gaps
-
-Useful for longer-term career development.
-
-This creates two levels of insight:
+The purpose is not to say:
 
 ```text
-Tactical:
-"What should I address for this job?"
-
-Strategic:
-"What keeps appearing across the jobs I want?"
+You must learn everything.
 ```
 
----
-
-# User Interface
-
-## 26. Main Workspace
-
-CareerCompass is organised into four primary areas.
-
-### Job Matches
-
-Discover and review job opportunities.
-
-### My Applications
-
-Manage saved opportunities and track hiring progress.
-
-### Career Insights
-
-Review recurring requirements and gaps.
-
-### My Profile
-
-Manage the user's current resume and profile information.
+Instead, it helps users understand the demand patterns within the particular jobs they are targeting.
 
 ---
 
-## 27. Built-In Help Guide
+# 26. Application Analytics
 
-CareerCompass includes an in-product **How to use?** guide.
+CareerCompass can aggregate application pipeline information to help users understand their activity.
 
-The guide explains:
+Examples include:
 
-* how to upload a resume
-* how to search for jobs
-* how to import a job URL
-* how resume comparisons work
-* what comparison statuses mean
-* how to track applications
-* how Career Insights works
-* the difference between search relevance, resume comparison, and eligibility
+* applications by stage
+* active opportunities
+* upcoming events
+* status progression
+* recurring gaps
+
+This connects the job-search process with structured analytics rather than treating every application independently.
 
 ---
 
-# Data and Privacy
+# 27. Loading and Interaction UX
 
-CareerCompass stores personal resume data privately.
+CareerCompass includes explicit loading states for asynchronous operations.
 
-The application uses:
+These include:
 
-* authenticated user accounts
-* user-scoped profiles
-* private resume storage
-* server-side ownership validation
-* Supabase authentication
-* PostgreSQL
-* Supabase Storage
-* row-level security where applicable
+* account authentication
+* account creation
+* workspace loading
+* backend wake-up
+* job search
+* resume upload
+* resume replacement
+* manual job import
+* resume comparison
+* saving opportunities
+* updating opportunity stages
+* updating priority
+* saving notes
+* recording application details
+* creating application events
+* loading application histories
+* deleting applications
+* loading Career Insights
+* signing out
 
-Resume files are stored in user-specific private storage paths.
+Buttons are disabled while relevant requests are running to reduce accidental duplicate submissions.
 
-Sensitive credentials and provider API keys remain server-side.
+---
+
+# 28. Dark Mode Support
+
+Authentication and dashboard interfaces include explicit dark-mode styling for:
+
+* text
+* labels
+* inputs
+* borders
+* cards
+* errors
+* loading states
+
+The interface therefore does not rely on light-mode browser assumptions.
 
 ---
 
 # Architecture
 
+The deployed system follows this structure:
+
 ```text
-                       ┌─────────────────┐
-                       │     Next.js     │
-                       │     Frontend    │
-                       └────────┬────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │     FastAPI     │
-                       │      API        │
-                       └────────┬────────┘
-                                │
-             ┌──────────────────┼──────────────────┐
-             │                  │                  │
-             ▼                  ▼                  ▼
-      ┌────────────┐    ┌───────────────┐   ┌──────────────┐
-      │ PostgreSQL │    │ Supabase Auth │   │   Storage    │
-      └────────────┘    └───────────────┘   └──────────────┘
+                        ┌────────────────────┐
+                        │       User         │
+                        └─────────┬──────────┘
+                                  │
+                                  ▼
+                        ┌────────────────────┐
+                        │       Vercel       │
+                        │      Next.js       │
+                        │      Frontend      │
+                        └─────────┬──────────┘
+                                  │
+                      Supabase JWT│
+                                  ▼
+                        ┌────────────────────┐
+                        │       Render       │
+                        │      FastAPI       │
+                        │      Backend       │
+                        └─────────┬──────────┘
+                                  │
+             ┌────────────────────┼─────────────────────┐
+             │                    │                     │
+             ▼                    ▼                     ▼
+    ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
+    │   Supabase     │   │   Supabase     │   │ External Job   │
+    │   PostgreSQL   │   │ Private Storage│   │   Providers    │
+    └────────────────┘   └────────────────┘   └────────────────┘
+             ▲
              │
              ▼
-      ┌─────────────────┐
-      │ Job Collection  │
-      │ + Normalisation │
-      └────────┬────────┘
-               ▼
-      ┌─────────────────┐
-      │ Requirement     │
-      │ Extraction      │
-      └────────┬────────┘
-               ▼
-      ┌─────────────────┐
-      │ Concept Mapping │
-      └────────┬────────┘
-               │
-               ├───────────────┐
-               ▼               ▼
-      ┌─────────────────┐  ┌─────────────────┐
-      │ Resume Evidence │  │ Eligibility     │
-      │ Matching        │  │ Assessment      │
-      └────────┬────────┘  └─────────────────┘
-               ▼
-      ┌─────────────────┐
-      │ Applications +  │
-      │ Career Insights │
-      └─────────────────┘
+    ┌────────────────┐
+    │ Supabase Auth  │
+    └────────────────┘
 ```
 
 ---
@@ -758,148 +1122,477 @@ Sensitive credentials and provider API keys remain server-side.
 * TypeScript
 * Tailwind CSS
 
+---
+
 ## Backend
 
 * Python
 * FastAPI
 * SQLAlchemy
+* Pydantic
+* Uvicorn
+* HTTPX
 
-## Database and Authentication
+---
+
+## Database
 
 * PostgreSQL
+* Supabase
+
+---
+
+## Authentication
+
 * Supabase Auth
-* Supabase Storage
-* Supabase Row-Level Security
+* JWT-based authenticated backend requests
 
-## NLP and Matching
+---
 
-* rule-based extraction
-* lexical concept matching
-* alias matching
-* sentence-transformers
-* semantic similarity
-* logical requirement groups
+## File Storage
+
+* Supabase private Storage
+
+---
+
+## Data Processing
+
+* pandas
+* NumPy
+* regular expressions
+* custom cleaning pipelines
+* structured requirement extraction
+
+---
+
+## Matching and Ranking
+
+* scikit-learn
+* TF-IDF
+* cosine similarity
+* RapidFuzz
+* concept aliases
+* deterministic matching
+* curated candidate matching
+* Sentence Transformers in the full local environment
+
+---
 
 ## Job Collection
 
-The job collection architecture supports multiple sources.
-
-Current integrations include:
-
-* SerpAPI / Google Jobs
+* external job APIs
+* SerpAPI
 * Jooble
-* direct public job URLs
-* structured job-platform endpoints where supported
+* public job listing URLs
 
-## Development and Deployment
+---
+
+## Infrastructure
 
 * GitHub
-* Vercel planned for frontend hosting
-* production FastAPI hosting
-* Supabase cloud services
+* Vercel
+* Render
+* Supabase
 
 ---
 
-# Repository Structure
+# Production Deployment
+
+CareerCompass is currently deployed using:
 
 ```text
-CareerLens/
-│
-├── api/
-│   ├── routes/
-│   ├── auth.py
-│   ├── profile.py
-│   └── index.py
-│
-├── src/
-│   ├── cleaning/
-│   ├── collection/
-│   ├── eligibility/
-│   ├── extraction/
-│   ├── matching/
-│   ├── services/
-│   ├── taxonomy/
-│   └── user_profile/
-│
-├── sql/
-│   ├── schema/
-│   └── supabase/
-│
-├── frontend/
-│   └── src/
-│       └── app/
-│           └── dashboard/
-│
-├── tests/
-├── docs/
-└── README.md
+Frontend
+Vercel
+
+Backend
+Render
+
+Authentication
+Supabase Auth
+
+Database
+Supabase PostgreSQL
+
+Resume Storage
+Supabase Storage
 ```
 
 ---
 
-# Local Development
+# Production Lightweight Mode
 
-## Backend
-
-From the repository root:
-
-```bash
-cd CareerLens
-
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-
-uvicorn api.index:app --reload
-```
-
-The backend runs locally at:
+The full local CareerCompass environment supports:
 
 ```text
-http://127.0.0.1:8000
+sentence-transformers
+PyTorch
+all-MiniLM-L6-v2
 ```
 
-FastAPI documentation is available at:
+The free Render backend has a limited memory allocation.
+
+Loading PyTorch and Sentence Transformers exceeded the available production memory during initial deployment.
+
+CareerCompass therefore supports:
 
 ```text
-http://127.0.0.1:8000/docs
+LIGHTWEIGHT_MODE=true
+```
+
+in production.
+
+---
+
+## Full Local Mode
+
+```text
+Search ranking
+→ TF-IDF + semantic embeddings
+
+Profile mapping
+→ direct aliases
+→ curated aliases
+→ semantic candidates
 ```
 
 ---
 
-## Frontend
-
-```bash
-cd frontend
-
-npm install
-npm run dev
-```
-
-The frontend normally runs at:
+## Lightweight Production Mode
 
 ```text
-http://localhost:3000
+Search ranking
+→ TF-IDF-based scoring
+
+Profile mapping
+→ direct aliases
+→ curated candidates
+→ no SentenceTransformer model loaded
 ```
+
+This prevents the production backend from importing PyTorch and its large runtime dependency stack.
+
+The full semantic implementation remains available locally.
+
+---
+
+# Search Pipeline
+
+A simplified search request follows:
+
+```text
+User submits search
+        ↓
+Authenticated request
+        ↓
+Search request recorded
+        ↓
+Provider searches executed
+        ↓
+Raw provider results collected
+        ↓
+Jobs normalised
+        ↓
+Duplicates handled
+        ↓
+Description quality assessed
+        ↓
+Relevance scores generated
+        ↓
+Requirements extracted
+        ↓
+Current resume compared
+        ↓
+Eligibility assessed
+        ↓
+Results returned to frontend
+```
+
+---
+
+# Manual Job Pipeline
+
+```text
+User pastes public listing URL
+        ↓
+Backend validates URL
+        ↓
+Listing fetched
+        ↓
+Structured page information extracted
+        ↓
+Job normalised
+        ↓
+Requirements extracted
+        ↓
+Atomic concepts generated
+        ↓
+Current resume compared
+        ↓
+Result displayed
+        ↓
+User can save to applications
+```
+
+---
+
+# Resume Pipeline
+
+```text
+User uploads resume
+        ↓
+Document validated
+        ↓
+Text extracted
+        ↓
+Sections identified
+        ↓
+Claims extracted
+        ↓
+Evidence extracted
+        ↓
+Previous resume replaced
+        ↓
+Concept mapping rebuilt
+        ↓
+Profile facts refreshed
+        ↓
+Future comparisons use new resume
+```
+
+---
+
+# Application Pipeline
+
+```text
+Opportunity discovered/imported
+        ↓
+Saved
+        ↓
+To Apply
+        ↓
+Applied
+        ↓
+Online Assessment
+        ↓
+Interview
+        ↓
+Offer / Rejected / Withdrawn
+```
+
+Events can be recorded throughout the process.
+
+---
+
+# Backend API
+
+The FastAPI backend exposes endpoints for the major CareerCompass workflows.
+
+## Profile
+
+```text
+GET /api/me
+```
+
+Returns the authenticated user's CareerCompass profile information.
+
+---
+
+## Search
+
+```text
+POST /api/search
+```
+
+Creates a job search.
+
+Additional search endpoints support:
+
+* search results
+* search state
+* quota information
+* fit data
+* eligibility data
+
+---
+
+## Resumes
+
+```text
+GET  /api/resumes
+POST /api/resumes
+```
+
+Supports:
+
+* retrieving the current resume
+* uploading a resume
+* replacing the existing resume
+* rebuilding the user profile
+
+---
+
+## Opportunities
+
+```text
+GET    /api/opportunities
+POST   /api/opportunities
+GET    /api/opportunities/analytics
+
+GET    /api/opportunities/{id}
+PATCH  /api/opportunities/{id}
+DELETE /api/opportunities/{id}
+
+POST /api/opportunities/{id}/status
+POST /api/opportunities/{id}/application
+POST /api/opportunities/{id}/events
+POST /api/opportunities/{id}/resume-comparison
+```
+
+---
+
+## Manual Jobs
+
+Manual-job endpoints support:
+
+* URL ingestion
+* listing extraction
+* requirement extraction
+* current-resume comparison
+* opportunity creation
+
+---
+
+## Analytics
+
+Analytics endpoints provide CareerCompass insight data derived from saved opportunities and profile comparisons.
+
+---
+
+# Database Design
+
+CareerCompass uses a relational PostgreSQL data model.
+
+Major entities include:
+
+```text
+auth.users
+
+user_profiles
+
+resume_documents
+resume_sections
+
+profile_claims
+profile_evidence
+
+jobs
+
+search_requests
+source_search_runs
+source_search_results
+
+job_relevance_scores
+
+job_requirements
+requirement_groups
+
+requirement_concepts
+requirement_concept_aliases
+job_requirement_concepts
+
+profile_claim_concepts
+profile_evidence_concepts
+
+profile_fit_assessments
+
+eligibility_facts
+eligibility_checks
+
+opportunities
+applications
+opportunity_events
+
+manual_job_imports
+```
+
+---
+
+# Authentication and Ownership
+
+The Supabase authenticated user ID is the source of ownership.
+
+Conceptually:
+
+```text
+auth.users.id
+      ↓
+user profile
+      ↓
+resume
+      ↓
+opportunities
+      ↓
+applications
+      ↓
+events
+```
+
+The backend determines ownership from the authenticated JWT.
+
+Client-supplied user IDs are not trusted as proof of ownership.
+
+---
+
+# User Isolation
+
+CareerCompass was tested with multiple accounts.
+
+A second authenticated user:
+
+* cannot access the first user's resume
+* cannot access the first user's opportunities
+* cannot access the first user's application events
+* cannot access the first user's Career Insights
+* receives a separate private workspace
+
+---
+
+# Resume Storage Security
+
+Resume files are stored in a private Supabase Storage bucket.
+
+Storage access is tied to authenticated user ownership.
+
+Resume documents are not intended to be publicly accessible.
 
 ---
 
 # Environment Variables
 
-Local secrets should never be committed.
+## Backend
 
-Backend configuration includes variables such as:
+The Render backend uses environment variables such as:
 
 ```text
 SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
 SUPABASE_DATABASE_URL
+
+SERPAPI_API_KEY
+JOOBLE_API_KEY
+JOOBLE_BASE_URL
+
+LIGHTWEIGHT_MODE
+PYTHON_VERSION
 ```
 
-Job-provider credentials should also remain server-side.
+Secrets are not exposed to the frontend.
 
-Frontend public configuration may include:
+---
+
+## Frontend
+
+The Vercel frontend uses:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
@@ -907,7 +1600,137 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_API_URL
 ```
 
-Use local `.env` and `.env.local` files and keep them outside Git.
+Example production API configuration:
+
+```text
+NEXT_PUBLIC_API_URL=https://careercompass-api-2v4r.onrender.com
+```
+
+Only values intended for browser use are exposed through `NEXT_PUBLIC_*`.
+
+Database passwords and provider API keys remain server-side.
+
+---
+
+# Local Development
+
+## 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd CareerLens
+```
+
+---
+
+## 2. Create a Python Virtual Environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+---
+
+## 3. Install Backend Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 4. Configure Environment Variables
+
+Create the local environment file required by the backend and provide the necessary Supabase and provider credentials.
+
+Do not commit production secrets.
+
+---
+
+## 5. Run the Backend
+
+```bash
+uvicorn api.index:app --reload
+```
+
+Local API:
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+---
+
+# Frontend Development
+
+Move into:
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Configure:
+
+```text
+frontend/.env.local
+```
+
+with variables such as:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+NEXT_PUBLIC_API_URL
+```
+
+For local development:
+
+```text
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
+
+Run:
+
+```bash
+npm run dev
+```
+
+Frontend:
+
+```text
+http://localhost:3000
+```
+
+---
+
+# Frontend Validation
+
+Run:
+
+```bash
+npm run lint
+```
+
+and:
+
+```bash
+npm run build
+```
+
+before production deployment.
 
 ---
 
@@ -919,199 +1742,720 @@ Schema migrations are stored under:
 sql/schema/
 ```
 
-They should be applied in numerical order.
+The project currently maintains sequential SQL migrations for features including:
 
-The project contains migrations covering areas including:
-
-* core jobs and companies
-* search tracking
-* job quality flags
-* requirement extraction
-* requirement concepts
-* user profiles
-* resume storage
-* authentication ownership
-* application tracking
-* requirement logic
-* manual job imports
+* core tables
+* search infrastructure
+* job normalisation
+* requirements
+* concept mapping
+* profile evidence
+* profile fit
+* eligibility
+* opportunity management
+* application events
+* manual job import
 * single-resume enforcement
 
----
+Supabase-specific policies are stored separately under:
 
-# Development Principles
-
-## Explain Rather Than Over-Score
-
-Where possible, CareerCompass shows requirement-level reasoning and evidence instead of reducing everything to one unexplained score.
-
-## Do Not Invent Qualifications
-
-If resume evidence is uncertain, CareerCompass should mark the requirement for review rather than automatically claiming that the user possesses the skill.
-
-## Keep Different Signals Separate
-
-Search relevance, resume evidence, eligibility, and application progress are distinct concepts.
-
-## Preserve User Privacy
-
-Resume files and user-owned application data should remain isolated between accounts.
-
-## Support Real Job-Search Workflows
-
-CareerCompass is designed around what happens both before and after an application, not only job discovery.
+```text
+sql/supabase/
+```
 
 ---
 
-# Current Product Status
+# Production Build Dependencies
 
-The core CareerCompass workflow has been implemented locally, including:
+The full development environment uses:
+
+```text
+requirements.txt
+```
+
+The lightweight Render deployment uses:
+
+```text
+requirements-render.txt
+```
+
+The production requirements intentionally exclude:
+
+```text
+sentence-transformers
+PyTorch
+Jupyter
+CUDA libraries
+```
+
+to remain within the memory constraints of the free backend host.
+
+---
+
+# Repository Structure
+
+A simplified representation of the repository:
+
+```text
+CareerLens/
+│
+├── api/
+│   ├── auth.py
+│   ├── index.py
+│   ├── profile.py
+│   │
+│   ├── routes/
+│   │   ├── analytics.py
+│   │   ├── manual_jobs.py
+│   │   ├── opportunities.py
+│   │   ├── resumes.py
+│   │   └── search.py
+│   │
+│   └── schemas/
+│
+├── src/
+│   ├── cleaning/
+│   ├── collection/
+│   ├── eligibility/
+│   ├── ranking/
+│   ├── requirements/
+│   ├── services/
+│   ├── taxonomy/
+│   └── user_profile/
+│
+├── frontend/
+│   └── src/
+│       └── app/
+│           ├── dashboard/
+│           └── login/
+│
+├── sql/
+│   ├── schema/
+│   └── supabase/
+│
+├── docs/
+│   └── PROJECT_SCOPE.md
+│
+├── tests/
+│
+├── requirements.txt
+├── requirements-render.txt
+└── README.md
+```
+
+---
+
+# Frontend Structure
+
+The dashboard is composed of dedicated components including:
+
+```text
+career-compass-header.tsx
+
+career-compass-help.tsx
+
+application-pipeline.tsx
+
+application-resume-comparison.tsx
+
+manual-job-import.tsx
+
+search-guidance.tsx
+
+skill-gap-panel.tsx
+
+loading-spinner.tsx
+```
+
+The main dashboard controller coordinates:
+
+* authenticated data loading
+* search results
+* resume state
+* opportunity state
+* analytics
+* UI refreshes after mutations
+
+---
+
+# Error Handling and Loading States
+
+Network-dependent functionality exposes visible loading states rather than appearing unresponsive.
+
+This is particularly important because the free Render backend can enter an idle state and require additional time for the first request after inactivity.
+
+The user does not need to manually restart or redeploy the service.
+
+CareerCompass displays loading feedback while the backend wakes and processes the request.
+
+---
+
+# Deployment Behaviour
+
+## Vercel
+
+The frontend remains deployed continuously.
+
+A user's browser does not depend on:
+
+* the developer's laptop
+* VS Code
+* a local terminal
+* an open Vercel dashboard
+
+---
+
+## Render
+
+The backend remains deployed but the free Render service may sleep after inactivity.
+
+When a new request arrives:
+
+```text
+User request
+     ↓
+Render service wakes
+     ↓
+FastAPI starts
+     ↓
+Request completes
+```
+
+No manual redeployment is required.
+
+---
+
+## Supabase
+
+Supabase independently hosts:
 
 * authentication
-* user profiles
-* one current resume per user
-* safe resume replacement
-* resume parsing
-* resume claim and evidence extraction
-* profile concept mapping
-* multi-source job search
-* search quotas
-* job normalisation
-* search relevance
-* job-description quality checks
+* PostgreSQL database
+* private resume storage
+
+---
+
+# Production Validation
+
+The deployed CareerCompass application has been smoke-tested across its major workflows.
+
+Validated production flows include:
+
+```text
+Guest dashboard
+✓
+
+Account creation
+✓
+
+Login
+✓
+
+Dark-mode authentication UI
+✓
+
+User isolation
+✓
+
+Resume upload
+✓
+
+Resume replacement
+✓
+
+Resume persistence after refresh
+✓
+
+Manual job URL import
+✓
+
+Manual resume comparison
+✓
+
+Save manual role to applications
+✓
+
+Immediate application-list refresh
+✓
+
+Application stage updates
+✓
+
+Application notes/events
+✓
+
+Application priority
+✓
+
+Application persistence
+✓
+
+Career Insights
+✓
+
+Live provider search
+✓
+```
+
+---
+
+# Search Quota
+
+Provider searches are intentionally quota-controlled.
+
+This prevents uncontrolled use of external provider APIs and makes search consumption visible to users.
+
+Manual job URL imports do not consume provider-search quota.
+
+---
+
+# Data and Analytics Skills Demonstrated
+
+Although CareerCompass is a full-stack application, much of its core functionality is built around data-analysis problems.
+
+The project demonstrates:
+
+## Python
+
+Used for:
+
+* data processing
+* backend services
+* text transformation
 * requirement extraction
-* requirement concept normalisation
-* logical requirement groups
-* manual job URL import
-* resume comparison
-* eligibility analysis
-* saved opportunities
-* application pipeline
-* application events
-* recurring skill-gap insights
-* in-product help
-
-The next major milestone is production deployment and production hardening.
+* matching
+* aggregation
+* analytics
 
 ---
 
-# Planned Improvements
+## SQL
 
-## Deployment and Production Hardening
+Used for:
 
-Planned work includes:
-
-* production frontend deployment
-* production FastAPI deployment
-* production environment configuration
-* production CORS configuration
-* logging
-* monitoring
-* improved error handling
-* deployment smoke tests
-* final security checks
+* relational data modelling
+* joins
+* aggregation
+* filtering
+* profile ownership
+* opportunity tracking
+* requirement relationships
+* concept mapping
+* analytics queries
 
 ---
 
-## Resume Tailoring Assistance
+## Data Cleaning
 
-Future versions of CareerCompass could use identified requirement gaps to help users improve how genuine experience is presented on their resume.
+CareerCompass processes heterogeneous job data from different sources.
 
-Any suggestions should remain grounded in the user's actual background rather than inventing qualifications or experiences.
+Cleaning tasks include:
 
----
-
-## Better Requirement Understanding
-
-Potential improvements include:
-
-* richer requirement grouping
-* cardinality requirements
-* improved equivalence detection
-* stronger role-specific taxonomies
-* improved confidence handling
+* title normalisation
+* company normalisation
+* description cleanup
+* duplicate handling
+* concept normalisation
+* alias handling
 
 ---
 
-## Application Analytics
+## Data Transformation
 
-Potential analytics include:
+Unstructured text is converted into structured information such as:
 
-* application conversion rates
-* online assessment conversion
-* interview conversion
-* offer conversion
-* response time
-* source effectiveness
-* recurring rejection stages
-
----
-
-## Additional Job Sources
-
-The collection architecture can support additional job providers and career sites where appropriate.
+```text
+raw job description
+        ↓
+requirements
+        ↓
+logical groups
+        ↓
+atomic concepts
+        ↓
+profile comparisons
+```
 
 ---
 
-## Broader Career Intelligence
+## Data Quality Assessment
 
-CareerCompass can eventually connect job requirements, application outcomes, and recurring gaps to provide longer-term career-development insights.
+CareerCompass distinguishes jobs with sufficiently rich descriptions from listings that do not contain enough information for reliable assessment.
+
+This prevents incomplete records from being interpreted as if they were complete.
+
+---
+
+## Data Integration
+
+CareerCompass combines data originating from:
+
+* multiple job providers
+* public job pages
+* uploaded resume documents
+* authenticated user profiles
+* application histories
+
+into a unified relational model.
+
+---
+
+## Text Analytics
+
+The project uses:
+
+* token-based techniques
+* normalisation
+* TF-IDF
+* cosine similarity
+* fuzzy matching
+* semantic embeddings
+* rule-based extraction
+
+to work with unstructured text.
+
+---
+
+## Feature and Taxonomy Design
+
+Job requirements and resume evidence are transformed into a reusable concept vocabulary.
+
+This required decisions around:
+
+* concept granularity
+* synonyms
+* equivalent terminology
+* candidate relationships
+* evidence thresholds
+* false-positive prevention
+
+---
+
+## Aggregation
+
+Career Insights aggregates individual job requirements across a collection of opportunities to expose broader trends.
+
+This transforms row-level job data into strategic user-level insight.
+
+---
+
+## Analytical Interpretation
+
+CareerCompass separates several quantities that could otherwise be misleading if combined:
+
+```text
+Relevance
+Fit
+Eligibility
+Data quality
+```
+
+The system treats them as distinct analytical dimensions rather than creating a single arbitrary hiring score.
+
+---
+
+## Data Visualisation and Communication
+
+The frontend translates structured analysis into user-facing interfaces for:
+
+* search relevance
+* requirement comparison
+* application pipelines
+* recurring skill gaps
+* application status
+* upcoming events
+
+This required converting backend data into information that can be interpreted quickly by users.
+
+---
+
+# Software Engineering Skills Demonstrated
+
+CareerCompass also required:
+
+* REST API design
+* backend architecture
+* frontend architecture
+* authentication
+* JWT handling
+* secure environment configuration
+* relational database design
+* schema migrations
+* private file storage
+* multi-user ownership
+* state management
+* asynchronous UI design
+* deployment
+* production debugging
+* Git/GitHub workflow
+* cloud configuration
+* CORS configuration
+
+---
+
+# Example CareerCompass Analysis
+
+Suppose a listing contains:
+
+```text
+Requirements
+
+- Strong SQL skills
+- Experience with Python
+- Experience with Power BI or Tableau
+- Strong stakeholder communication
+```
+
+A user's resume contains:
+
+```text
+Technical Skills:
+Python, SQL, Tableau
+
+Experience:
+Presented analysis to cross-functional stakeholders
+```
+
+CareerCompass may represent this conceptually as:
+
+```text
+SQL
+→ Supported by your resume
+
+Python
+→ Supported by your resume
+
+Power BI OR Tableau
+→ Supported by Tableau
+
+Stakeholder communication
+→ Supported by experience evidence
+```
+
+If Power BI and Tableau were both absent:
+
+```text
+Power BI OR Tableau
+→ Not shown on your resume
+```
+
+CareerCompass does not infer that the candidate cannot use those tools.
+
+It only reports what the current resume demonstrates.
+
+---
+
+# Why Not Predict Hiring Probability?
+
+Hiring depends on many variables CareerCompass cannot reliably observe, including:
+
+* applicant competition
+* recruiter preferences
+* interview performance
+* referral strength
+* internal candidates
+* headcount changes
+* role urgency
+* employer screening systems
+* subjective assessment
+
+Presenting a precise probability would therefore imply a level of certainty the available data cannot support.
+
+CareerCompass instead focuses on observable evidence.
 
 ---
 
 # Limitations
 
-CareerCompass performs automated extraction and comparison and can make mistakes.
+CareerCompass currently has several known limitations.
 
-A missing match does not necessarily mean the user lacks a skill.
+## Production Semantic Matching
 
-A detected match does not guarantee that an employer will consider the evidence sufficient.
-
-Job descriptions may also be incomplete, ambiguous, or inaccurate.
-
-CareerCompass should therefore be used as a decision-support tool rather than an authoritative hiring assessment.
+The deployed free backend uses lightweight mode because the full embedding stack exceeds its memory allocation.
 
 ---
 
-# Security Notes
+## Public Job Page Variability
 
-Never commit:
+Job websites differ considerably in:
+
+* HTML structure
+* client-side rendering
+* anti-bot protection
+* structured metadata
+* description completeness
+
+Some manual URLs may therefore be impossible to extract reliably.
+
+---
+
+## Requirement Extraction
+
+Requirement extraction is heuristic.
+
+Ambiguous job descriptions can still produce:
+
+* incomplete requirements
+* overly broad concepts
+* candidate matches requiring review
+
+---
+
+## Cardinality
+
+Complex conditions such as:
 
 ```text
-.env
-.env.local
-database passwords
-Supabase service credentials
-provider API keys
-access tokens
-private resume files
-private user data
+At least 2 of the following 5 technologies
 ```
 
-Recommended `.gitignore` entries include:
-
-```gitignore
-.env
-.env.*
-!.env.example
-
-.venv/
-node_modules/
-.next/
-
-__pycache__/
-*.pyc
-
-data/private/
-```
+are not yet modelled fully.
 
 ---
 
-# Project Goal
+## Resume Evidence
 
-CareerCompass aims to help job seekers make stronger, better-informed applications.
+CareerCompass can only analyse evidence contained in the uploaded resume.
 
-The central question is:
+It cannot know skills or experiences the user has not documented.
 
-> Before I submit this application, does my resume clearly demonstrate what this employer appears to be looking for?
+---
 
-CareerCompass attempts to answer that question transparently while also helping users discover opportunities, organise applications, track hiring progress, and understand recurring areas for improvement.
+## Hiring Outcomes
+
+CareerCompass does not predict:
+
+* ATS acceptance
+* interview probability
+* offer probability
+* recruiter decisions
+
+---
+
+## Provider Coverage
+
+Job discovery depends on the configured providers and therefore cannot guarantee complete coverage of every available job.
+
+Manual URL import exists partly to address this limitation.
+
+---
+
+# Future Development
+
+Potential future improvements include:
+
+## Matching
+
+* richer semantic matching in production
+* improved concept disambiguation
+* more sophisticated evidence attribution
+* requirement-cardinality support
+
+---
+
+## Search
+
+* additional job providers
+* better company-level filtering
+* improved deduplication
+* more search filters
+* search history
+
+---
+
+## Resume Intelligence
+
+* guided resume tailoring
+* section-level recommendations
+* achievement-quality analysis
+* role-specific resume versions
+
+---
+
+## Career Insights
+
+* requirement trends by occupation
+* skill-demand breakdowns
+* application conversion analytics
+* time-to-stage metrics
+* historical application performance
+
+---
+
+## Application Management
+
+* automated reminders
+* scheduled follow-ups
+* interview preparation links
+* calendar integration
+* deadline notifications
+
+---
+
+## Production Infrastructure
+
+* stronger monitoring
+* structured logging
+* error tracking
+* higher-memory backend hosting
+* full production semantic model
+* custom domain
+
+---
+
+# Project Status
+
+CareerCompass is currently deployed and supports its intended core workflow:
+
+```text
+Account creation
+      ↓
+Job discovery
+      ↓
+Job requirement extraction
+      ↓
+Resume comparison
+      ↓
+Opportunity saving
+      ↓
+Application management
+      ↓
+Career Insights
+      ↓
+Resume improvement
+```
+
+The application has progressed from a local data-processing prototype into a multi-user deployed web application with authenticated data ownership, private document storage, job intelligence, resume analysis, application tracking and production infrastructure.
+
+---
+
+# Summary
+
+CareerCompass combines:
+
+```text
+Job Discovery
++
+Data Cleaning
++
+Text Processing
++
+Requirement Extraction
++
+Resume Evidence Mapping
++
+Similarity Analysis
++
+Application Tracking
++
+Career Analytics
+```
+
+into one integrated workflow.
+
+The central idea is simple:
+
+> Help users understand not only which opportunities are relevant, but also what those opportunities require, what their resume currently demonstrates, and what patterns emerge across the jobs they want.
+
+```
+```
