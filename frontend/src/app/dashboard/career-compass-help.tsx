@@ -157,7 +157,7 @@ export function CareerCompassHelp({
 
 
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Use CareerCompass to analyse roles against your resume, understand what employers are asking for, and keep your applications organised.
+              Use CareerCompass to analyse a specific job first, compare its requirements with your resume, discover more opportunities when needed, and keep your applications organised.
             </p>
 
           </div>
@@ -192,47 +192,47 @@ export function CareerCompassHelp({
                 number="1"
                 title="Upload your resume"
               >
-                Start in <strong>My Profile</strong> and upload your resume. CareerCompass extracts profile evidence that is used when comparing you with job requirements.
+                Upload your resume in <strong>My Profile</strong>, or use <strong>Upload Resume</strong> beside the main job analyser. CareerCompass extracts the profile evidence used for job comparisons.
               </HelpStep>
 
 
               <HelpStep
                 number="2"
-                title="Add a role"
+                title="Analyse the job you want"
               >
-                Paste a public job listing link to analyse a specific role against your resume. If you want to discover additional opportunities, use <strong>Search for more options</strong>. Manual job links do not use your provider-search allowance.
+                Paste the public URL of a specific role into the main analyser and select <strong>Read Job Listing</strong>. Manual job links do not use one of your two provider searches.
               </HelpStep>
 
 
               <HelpStep
                 number="3"
-                title="Review the role"
+                title="Review the extracted role"
               >
-                CareerCompass extracts the job requirements and evaluates them separately from your resume evidence. For roles found through provider search, Search Relevance remains separate from Resume Comparison.
+                CareerCompass reads the listing and extracts its requirements. If the page blocks automated reading, use the option to paste the job description manually instead.
               </HelpStep>
 
 
               <HelpStep
                 number="4"
-                title="Compare the role with your resume"
+                title="Compare it with your resume"
               >
-                Open the resume comparison to see what is <strong>Supported by your resume</strong>, <strong>Not shown on your resume</strong>, or <strong>Needs review</strong>. “Not shown” means CareerCompass did not find supporting evidence; it does not prove you do not have that skill.
+                Review what is <strong>Supported by your resume</strong>, <strong>Not shown on your resume</strong>, or <strong>Needs review</strong>. “Not shown” means CareerCompass did not find supporting evidence; it does not prove you do not have that skill.
               </HelpStep>
 
 
               <HelpStep
                 number="5"
-                title="Save and track the application"
+                title="Search for more opportunities"
               >
-                Save roles to <strong>My Applications</strong>, move them through stages such as To Apply, Applied, Online Assessment, Interview and Offer, and record deadlines, follow-ups and other events.
+                If you want alternatives, use <strong>Search Jobs</strong> beneath the main analyser to search your desired role. Provider searches are limited and their results are saved automatically.
               </HelpStep>
 
 
               <HelpStep
                 number="6"
-                title="Review your progress"
+                title="Save and track your progress"
               >
-                Use <strong>Career Insights</strong> to identify recurring requirement gaps and review your application activity over time.
+                Save roles to <strong>My Applications</strong>, move them through stages such as To Apply, Applied, Online Assessment, Interview and Offer, and use <strong>Career Insights</strong> to review recurring requirement gaps.
               </HelpStep>
 
             </div>
@@ -257,7 +257,7 @@ export function CareerCompassHelp({
 
 
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Review roles you imported or found through search, inspect extracted requirements, and save interesting opportunities.
+                  Review roles returned by provider search, inspect extracted requirements, and save interesting opportunities. Use the main analyser when you already have a specific job listing.
                 </p>
 
               </div>
@@ -317,7 +317,7 @@ export function CareerCompassHelp({
 
 
             <p className="mt-2 text-sm leading-6 text-blue-900">
-              For provider-search results, Search Relevance tells you how closely a role matches your search. Resume Comparison tells you whether CareerCompass found supporting evidence in your profile for the role’s requirements. Eligibility checks are separate again. These signals answer different questions and should not be treated as a hiring probability.
+              Search Relevance tells you how closely a role matches your search. Resume Comparison tells you whether CareerCompass found supporting evidence in your profile for the role’s requirements. Eligibility checks are separate again. These signals answer different questions and should not be treated as a hiring probability.
             </p>
 
           </section>

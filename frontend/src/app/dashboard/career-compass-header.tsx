@@ -106,14 +106,6 @@ export function CareerCompassHeader({
   );
 
 
-  const [
-    searchOptionsOpen,
-    setSearchOptionsOpen,
-  ] = useState(
-    false
-  );
-
-
   function navButtonClass(
     view: DashboardView
   ) {
@@ -153,7 +145,35 @@ export function CareerCompassHeader({
   function scrollToSearch() {
     document
       .getElementById(
-        "careercompass-primary-action"
+        "careercompass-search"
+      )
+      ?.scrollIntoView(
+        {
+          behavior:
+            "smooth",
+          block:
+            "center",
+        }
+      );
+
+
+    window.setTimeout(
+      () => {
+        document
+          .getElementById(
+            "careercompass-role-search"
+          )
+          ?.focus();
+      },
+      450
+    );
+  }
+
+
+  function scrollToManualJob() {
+    document
+      .getElementById(
+        "careercompass-manual-job-import"
       )
       ?.scrollIntoView(
         {
@@ -333,7 +353,7 @@ export function CareerCompassHeader({
             }
             className="justify-self-end text-sm font-semibold text-white underline decoration-white/60 underline-offset-4 transition hover:text-blue-100 hover:decoration-white"
           >
-            How to use?
+            Need help?
           </button>
 
         </div>
@@ -368,7 +388,7 @@ export function CareerCompassHeader({
           <button
             type="button"
             onClick={
-              scrollToSearch
+              scrollToManualJob
             }
             className="rounded-2xl border border-white/25 bg-white/10 px-4 py-5 text-center shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/20"
           >
@@ -381,7 +401,7 @@ export function CareerCompassHeader({
           <button
             type="button"
             onClick={
-              scrollToSearch
+              scrollToManualJob
             }
             className="rounded-2xl border border-white/25 bg-white/10 px-4 py-5 text-center shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/20"
           >
@@ -423,17 +443,10 @@ export function CareerCompassHeader({
         </div>
 
 
-        <div
-          id="careercompass-primary-action"
-          className="mx-auto mt-9 max-w-4xl scroll-mt-4"
-        >
+        <div className="mx-auto mt-9 max-w-4xl">
 
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-100">
-            Tailor your resume for a specific role
-          </p>
-
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-blue-100">
-            Paste a public job listing link and CareerCompass will analyse it against your current resume.
+            Analyse a specific job
           </p>
 
 
@@ -441,158 +454,123 @@ export function CareerCompassHeader({
             onOpportunitySaved={
               onOpportunitySaved
             }
+            onResumeUpload={
+              openResumeUpload
+            }
           />
 
 
-          <div className="mt-6">
-
-            <p className="text-sm text-blue-100">
-              Looking for more opportunities?
-            </p>
+          <div
+            id="careercompass-search"
+            className="mt-7 scroll-mt-4 rounded-2xl border border-white/20 bg-white/10 p-4 text-left shadow-lg backdrop-blur-sm"
+          >
 
             <button
               type="button"
-              onClick={() => {
-                const nextOpen =
-                  !searchOptionsOpen;
-
-                setSearchOptionsOpen(
-                  nextOpen
-                );
-
-                if (nextOpen) {
-                  window.setTimeout(
-                    () => {
-                      document
-                        .getElementById(
-                          "careercompass-role-search"
-                        )
-                        ?.focus();
-                    },
-                    100
-                  );
-                }
-              }}
-              className="mt-2 rounded-xl border border-white/40 bg-white/15 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
-            >
-              {
-                searchOptionsOpen
-                  ? "Hide job search"
-                  : "Search for more options"
+              onClick={
+                scrollToSearch
               }
+              className="text-sm font-semibold text-white underline decoration-blue-200 underline-offset-4 transition hover:text-blue-100"
+            >
+              Looking for more opportunities? Search your desired role here (CLICK HERE)
             </button>
+
+
+            <form
+              onSubmit={
+                onSearch
+              }
+              className="mt-3 grid gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 md:grid-cols-[2fr_1fr_auto]"
+            >
+
+              <input
+                id="careercompass-role-search"
+                value={
+                  query
+                }
+                onChange={
+                  (event) =>
+                    onQueryChange(
+                      event.target.value
+                    )
+                }
+                placeholder="Role, e.g. Data Analyst Intern"
+                required
+                className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
+              />
+
+
+              <input
+                value={
+                  location
+                }
+                onChange={
+                  (event) =>
+                    onLocationChange(
+                      event.target.value
+                    )
+                }
+                placeholder="Location"
+                required
+                className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
+              />
+
+
+              <div className="flex gap-2 md:flex-col lg:flex-row">
+
+                <button
+                  type="submit"
+                  disabled={
+                    searching
+                    || remainingSearches
+                      === 0
+                  }
+                  className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {
+                    searching
+                      && (
+                        <LoadingSpinner
+                          label="Searching for jobs"
+                        />
+                      )
+                  }
+
+                  {
+                    searching
+                      ? "Searching..."
+                      : "Search Jobs"
+                  }
+                </button>
+
+
+                <button
+                  type="button"
+                  onClick={
+                    openResumeUpload
+                  }
+                  className="min-h-12 flex-1 rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
+                >
+                  Upload Resume
+                </button>
+
+              </div>
+
+            </form>
+
+
+            <SearchGuidance
+              remaining={
+                remainingSearches
+              }
+              limit={
+                searchLimit
+              }
+            />
 
           </div>
 
-
-          {
-            searchOptionsOpen
-            && (
-              <div
-                id="careercompass-search"
-                className="mt-4"
-              >
-
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                  Search available providers
-                </p>
-
-                <form
-                  onSubmit={
-                    onSearch
-                  }
-                  className="grid gap-3 rounded-2xl border border-white/25 bg-white/10 p-3 shadow-2xl backdrop-blur-md md:grid-cols-[2fr_1fr_auto]"
-                >
-
-                  <input
-                    id="careercompass-role-search"
-                    value={
-                      query
-                    }
-                    onChange={
-                      (event) =>
-                        onQueryChange(
-                          event.target.value
-                        )
-                    }
-                    placeholder="Role, e.g. Data Analyst Intern"
-                    required
-                    className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
-                  />
-
-                  <input
-                    value={
-                      location
-                    }
-                    onChange={
-                      (event) =>
-                        onLocationChange(
-                          event.target.value
-                        )
-                    }
-                    placeholder="Location"
-                    required
-                    className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
-                  />
-
-                  <div className="flex gap-2 md:flex-col lg:flex-row">
-
-                    <button
-                      type="submit"
-                      disabled={
-                        searching
-                        || remainingSearches
-                          === 0
-                      }
-                      className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {
-                        searching
-                        && (
-                          <LoadingSpinner
-                            label="Searching for jobs"
-                          />
-                        )
-                      }
-
-                      {
-                        searching
-                          ? "Searching..."
-                          : "Search Jobs"
-                      }
-                    </button>
-
-
-                    <button
-                      type="button"
-                      onClick={
-                        openResumeUpload
-                      }
-                      className="min-h-12 flex-1 rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
-                    >
-                      Upload Resume
-                    </button>
-
-                  </div>
-
-                </form>
-
-
-                <SearchGuidance
-                  remaining={
-                    remainingSearches
-                  }
-                  limit={
-                    searchLimit
-                  }
-                />
-
-              </div>
-            )
-          }
-
         </div>
-
 
         <div className="mx-auto mt-9 max-w-6xl rounded-3xl border-2 border-white/80 bg-white/95 p-5 text-slate-900 shadow-2xl backdrop-blur-md sm:p-6">
 

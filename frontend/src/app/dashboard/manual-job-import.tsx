@@ -180,6 +180,9 @@ type OpportunityResponse = {
 type ManualJobImportProps = {
   onOpportunitySaved?:
     () => Promise<void>;
+
+  onResumeUpload?:
+    () => void;
 };
 
 
@@ -251,15 +254,8 @@ function fitClassName(
 
 export function ManualJobImport({
   onOpportunitySaved,
+  onResumeUpload,
 }: ManualJobImportProps) {
-  const [
-    open,
-    setOpen,
-  ] = useState(
-    true
-  );
-
-
   const [
     url,
     setUrl,
@@ -831,43 +827,34 @@ export function ManualJobImport({
       className="mt-4 scroll-mt-6"
     >
 
-      <button
-        type="button"
-        onClick={() =>
-          setOpen(
-            (
-              current
-            ) =>
-              !current
-          )
-        }
-        className="text-sm font-semibold text-white underline decoration-blue-200 underline-offset-4 transition hover:text-blue-100"
-      >
-        {
-          open
-            ? "Hide job link analyser"
-            : "Show job link analyser"
-        }
-      </button>
+      <div className="mx-auto max-w-4xl rounded-3xl border-2 border-white/70 bg-white p-5 text-left text-slate-900 shadow-2xl sm:p-6">
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
+          <div>
+
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#0A66C2]">
+              Primary job analyser
+            </p>
 
 
-      {
-        open
-        && (
-          <div className="mx-auto mt-4 max-w-4xl rounded-2xl border border-white/25 bg-white p-5 text-left text-slate-900 shadow-2xl">
-
-            <div>
-
-              <h3 className="text-lg font-bold">
-                Job listing link
-              </h3>
+            <h3 className="mt-1 text-2xl font-black tracking-tight">
+              Analyse a job listing
+            </h3>
 
 
-              <p className="mt-1 text-sm text-slate-600">
-                Paste a public job listing URL. This does not use one of your provider searches.
-              </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Paste a public job listing URL. CareerCompass will read the role, extract its requirements and help compare them with your resume. Manual job imports do not use one of your two provider searches.
+            </p>
 
-            </div>
+          </div>
+
+
+          <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#0A66C2]">
+            Start here
+          </span>
+
+        </div>
 
 
             <form
@@ -877,7 +864,7 @@ export function ManualJobImport({
               className="mt-4 space-y-4"
             >
 
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
 
                 <input
                   type="url"
@@ -920,6 +907,17 @@ export function ManualJobImport({
                       ? "Reading listing..."
                       : "Read Job Listing"
                   }
+                </button>
+
+
+                <button
+                  type="button"
+                  onClick={
+                    onResumeUpload
+                  }
+                  className="min-h-11 rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-bold text-[#0A66C2] shadow-sm transition hover:bg-blue-100"
+                >
+                  Upload Resume
                 </button>
 
               </div>
@@ -1450,9 +1448,7 @@ export function ManualJobImport({
               )
             }
 
-          </div>
-        )
-      }
+      </div>
 
     </div>
   );
