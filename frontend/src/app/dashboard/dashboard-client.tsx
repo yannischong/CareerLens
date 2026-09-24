@@ -5103,6 +5103,10 @@ export default function DashboardClient({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Getting your profile, applications and latest results ready. This can take a little longer after a period of inactivity.
           </p>
+
+          <p className="mt-3 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-[#0A66C2] dark:bg-blue-950/40 dark:text-blue-200">
+            Estimated time: 10–20 seconds
+          </p>
         </div>
       </div>
     );
@@ -7590,10 +7594,19 @@ export default function DashboardClient({
               <button
                 type="button"
                 onClick={() => {
-                  document
-                    .getElementById(
+                  const searchPanel =
+                    document.getElementById(
                       "careercompass-search"
-                    )
+                    ) as HTMLDetailsElement | null;
+
+                  if (
+                    searchPanel
+                  ) {
+                    searchPanel.open =
+                      true;
+                  }
+
+                  searchPanel
                     ?.scrollIntoView(
                       {
                         behavior:
@@ -7627,10 +7640,19 @@ export default function DashboardClient({
               <button
                 type="button"
                 onClick={() => {
-                  document
-                    .getElementById(
+                  const searchPanel =
+                    document.getElementById(
                       "careercompass-search"
-                    )
+                    ) as HTMLDetailsElement | null;
+
+                  if (
+                    searchPanel
+                  ) {
+                    searchPanel.open =
+                      true;
+                  }
+
+                  searchPanel
                     ?.scrollIntoView(
                       {
                         behavior: "smooth",

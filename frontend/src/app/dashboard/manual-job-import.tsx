@@ -827,42 +827,44 @@ export function ManualJobImport({
       className="mt-4 scroll-mt-6"
     >
 
-      <div className="mx-auto max-w-4xl rounded-3xl border-2 border-white/70 bg-white p-5 text-left text-slate-900 shadow-2xl sm:p-6">
+      <div className="mx-auto max-w-4xl rounded-[2rem] border border-white/60 bg-white/95 p-3 text-left text-slate-900 shadow-2xl backdrop-blur-md sm:p-4">
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="rounded-3xl border border-white/20 bg-gradient-to-br from-[#0A66C2] via-[#0A66C2] to-[#004182] p-5 shadow-xl sm:p-6">
 
-          <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#0A66C2]">
+            <div>
+
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-100">
               Primary job analyser
             </p>
 
 
-            <h3 className="mt-1 text-2xl font-black tracking-tight">
+            <h3 className="mt-1 text-2xl font-black tracking-tight text-white">
               Analyse a job listing
             </h3>
 
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Paste a public job listing URL. CareerCompass will read the role, extract its requirements and help compare them with your resume. Manual job imports do not use one of your two provider searches.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50/90">
+              Paste a public job listing URL. CareerCompass will read the role, extract its requirements and help compare them with your resume.
             </p>
 
           </div>
 
 
-          <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#0A66C2]">
+          <span className="w-fit rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-sm">
             Start here
           </span>
 
-        </div>
+          </div>
 
 
-            <form
-              onSubmit={
-                handlePreview
-              }
-              className="mt-4 space-y-4"
-            >
+          <form
+            onSubmit={
+              handlePreview
+            }
+            className="mt-5 space-y-4 rounded-2xl border border-white/15 bg-white/10 p-3 shadow-inner backdrop-blur-sm sm:p-4"
+          >
 
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
 
@@ -882,7 +884,7 @@ export function ManualJobImport({
                   }
                   placeholder="https://company.com/careers/job..."
                   required
-                  className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-blue-200 focus:ring-2"
+                  className="min-h-12 flex-1 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                 />
 
 
@@ -891,7 +893,7 @@ export function ManualJobImport({
                   disabled={
                     loading
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {
                     loading
@@ -915,7 +917,7 @@ export function ManualJobImport({
                   onClick={
                     onResumeUpload
                   }
-                  className="min-h-11 rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-bold text-[#0A66C2] shadow-sm transition hover:bg-blue-100"
+                  className="min-h-12 rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
                 >
                   Upload Resume
                 </button>
@@ -933,7 +935,7 @@ export function ManualJobImport({
                       !current
                   )
                 }
-                className="text-xs font-semibold text-[#0A66C2] hover:underline"
+                className="text-xs font-semibold text-blue-100 underline-offset-4 hover:text-white hover:underline"
               >
                 {
                   showDescriptionFallback
@@ -966,12 +968,14 @@ export function ManualJobImport({
                       8
                     }
                     placeholder="Paste the full job description here..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-6 outline-none ring-blue-200 focus:ring-2"
+                    className="w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                   />
                 )
               }
 
-            </form>
+          </form>
+
+        </div>
 
 
             {

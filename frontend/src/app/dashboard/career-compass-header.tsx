@@ -142,33 +142,6 @@ export function CareerCompassHeader({
   }
 
 
-  function scrollToSearch() {
-    document
-      .getElementById(
-        "careercompass-search"
-      )
-      ?.scrollIntoView(
-        {
-          behavior:
-            "smooth",
-          block:
-            "center",
-        }
-      );
-
-
-    window.setTimeout(
-      () => {
-        document
-          .getElementById(
-            "careercompass-role-search"
-          )
-          ?.focus();
-      },
-      450
-    );
-  }
-
 
   function scrollToManualJob() {
     document
@@ -460,115 +433,121 @@ export function CareerCompassHeader({
           />
 
 
-          <div
+          <details
             id="careercompass-search"
-            className="mt-7 scroll-mt-4 rounded-2xl border border-white/20 bg-white/10 p-4 text-left shadow-lg backdrop-blur-sm"
+            className="group mt-7 scroll-mt-4 text-left"
           >
 
-            <button
-              type="button"
-              onClick={
-                scrollToSearch
-              }
-              className="text-sm font-semibold text-white underline decoration-blue-200 underline-offset-4 transition hover:text-blue-100"
-            >
-              Looking for more opportunities? Search your desired role here (CLICK HERE)
-            </button>
+            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur-sm transition hover:border-white/40 hover:bg-white/20 [&::-webkit-details-marker]:hidden">
+              <span className="underline decoration-blue-200 underline-offset-4">
+                Looking for more opportunities? Search your desired role here (CLICK HERE)
+              </span>
+              <span
+                aria-hidden="true"
+                className="text-base transition-transform duration-200 group-open:rotate-180"
+              >
+                ▾
+              </span>
+            </summary>
 
 
-            <form
-              onSubmit={
-                onSearch
-              }
-              className="mt-3 grid gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 md:grid-cols-[2fr_1fr_auto]"
-            >
+            <div className="mt-3 rounded-3xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
 
-              <input
-                id="careercompass-role-search"
-                value={
-                  query
+              <form
+                onSubmit={
+                  onSearch
                 }
-                onChange={
-                  (event) =>
-                    onQueryChange(
-                      event.target.value
-                    )
-                }
-                placeholder="Role, e.g. Data Analyst Intern"
-                required
-                className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
-              />
+                className="grid gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 md:grid-cols-[2fr_1fr_auto]"
+              >
 
-
-              <input
-                value={
-                  location
-                }
-                onChange={
-                  (event) =>
-                    onLocationChange(
-                      event.target.value
-                    )
-                }
-                placeholder="Location"
-                required
-                className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
-              />
-
-
-              <div className="flex gap-2 md:flex-col lg:flex-row">
-
-                <button
-                  type="submit"
-                  disabled={
-                    searching
-                    || remainingSearches
-                      === 0
+                <input
+                  id="careercompass-role-search"
+                  value={
+                    query
                   }
-                  className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {
-                    searching
-                      && (
-                        <LoadingSpinner
-                          label="Searching for jobs"
-                        />
+                  onChange={
+                    (event) =>
+                      onQueryChange(
+                        event.target.value
                       )
                   }
+                  placeholder="Role, e.g. Data Analyst Intern"
+                  required
+                  className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
+                />
 
-                  {
-                    searching
-                      ? "Searching..."
-                      : "Search Jobs"
+
+                <input
+                  value={
+                    location
                   }
-                </button>
-
-
-                <button
-                  type="button"
-                  onClick={
-                    openResumeUpload
+                  onChange={
+                    (event) =>
+                      onLocationChange(
+                        event.target.value
+                      )
                   }
-                  className="min-h-12 flex-1 rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
-                >
-                  Upload Resume
-                </button>
-
-              </div>
-
-            </form>
+                  placeholder="Location"
+                  required
+                  className="min-h-12 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
+                />
 
 
-            <SearchGuidance
-              remaining={
-                remainingSearches
-              }
-              limit={
-                searchLimit
-              }
-            />
+                <div className="flex gap-2 md:flex-col lg:flex-row">
 
-          </div>
+                  <button
+                    type="submit"
+                    disabled={
+                      searching
+                      || remainingSearches
+                        === 0
+                    }
+                    className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0A66C2] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {
+                      searching
+                        && (
+                          <LoadingSpinner
+                            label="Searching for jobs"
+                          />
+                        )
+                    }
+
+                    {
+                      searching
+                        ? "Searching..."
+                        : "Search Jobs"
+                    }
+                  </button>
+
+
+                  <button
+                    type="button"
+                    onClick={
+                      openResumeUpload
+                    }
+                    className="min-h-12 flex-1 rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
+                  >
+                    Upload Resume
+                  </button>
+
+                </div>
+
+              </form>
+
+
+              <SearchGuidance
+                remaining={
+                  remainingSearches
+                }
+                limit={
+                  searchLimit
+                }
+              />
+
+            </div>
+
+          </details>
 
         </div>
 
