@@ -5,6 +5,11 @@ from src.extraction.models import (
     RequirementMention,
 )
 
+from src.extraction.sections import (
+    infer_level_from_section,
+    split_job_sections,
+)
+
 
 WHITESPACE_PATTERN = re.compile(
     r"\s+"
@@ -647,7 +652,20 @@ def create_mention(
     level,
     rule_name,
     structured_value=None,
+    section=None,
 ):
+    metadata = {}
+
+    if section is not None:
+        metadata.update(
+            section.metadata()
+        )
+
+    if structured_value:
+        metadata.update(
+            structured_value
+        )
+
     return RequirementMention(
         requirement_type=
             requirement_type,
@@ -666,328 +684,335 @@ def create_mention(
         rule_name=
             rule_name,
 
-        structured_value=(
-            structured_value
-            or {}
-        ),
+        structured_value=
+            metadata,
     )
 
 
-def extract_requirements(
-    text,
+def _extract_unit_mentions(
+    unit,
+    section,
 ):
     mentions = []
 
-
-    for unit in split_requirement_units(
-        text
-    ):
-
-        level = detect_requirement_level(
+    explicit_level = (
+        detect_requirement_level(
             unit
         )
+    )
 
-        matched = False
+    level = infer_level_from_section(
+        section.section_type,
+        explicit_level,
+    )
 
+    matched = False
 
-        range_match = (
-            EXPERIENCE_RANGE_PATTERN.search(
+    range_match = (
+        EXPERIENCE_RANGE_PATTERN.search(
+            unit
+        )
+    )
+
+    if range_match:
+        mentions.append(
+            create_mention(
+                "experience",
+                unit,
+                level,
+                "experience_range",
+                {
+                    "min_years": int(
+                        range_match.group(1)
+                    ),
+                    "max_years": int(
+                        range_match.group(2)
+                    ),
+                },
+                section=section,
+            )
+        )
+        matched = True
+
+    else:
+        experience_match = (
+            EXPERIENCE_PATTERN.search(
                 unit
             )
         )
 
-
-        if range_match:
-
+        if experience_match:
             mentions.append(
                 create_mention(
                     "experience",
                     unit,
                     level,
-                    "experience_range",
+                    "experience_years",
                     {
-                        "min_years":
-                            int(
-                                range_match.group(
-                                    1
-                                )
-                            ),
-
-                        "max_years":
-                            int(
-                                range_match.group(
-                                    2
-                                )
-                            ),
+                        "min_years": int(
+                            experience_match.group(1)
+                        )
                     },
+                    section=section,
                 )
             )
-
             matched = True
 
-
-        else:
-
-            experience_match = (
-                EXPERIENCE_PATTERN.search(
-                    unit
-                )
-            )
-
-
-            if experience_match:
-
-                mentions.append(
-                    create_mention(
-                        "experience",
-                        unit,
-                        level,
-                        "experience_years",
-                        {
-                            "min_years":
-                                int(
-                                    experience_match.group(
-                                        1
-                                    )
-                                )
-                        },
-                    )
-                )
-
-                matched = True
-
-
-            elif (
-                DEMONSTRATED_EXPERIENCE_PATTERN.search(
-                    unit
-                )
-            ):
-
-                mentions.append(
-                    create_mention(
-                        "experience",
-                        unit,
-                        level,
-                        "demonstrated_experience",
-                    )
-                )
-
-                matched = True
-
-
-        category_patterns = [
-            (
-                "education",
-                EDUCATION_PATTERN,
-                "education_keyword",
-            ),
-
-            (
-                "professional_registration",
-                PROFESSIONAL_REGISTRATION_PATTERN,
-                "professional_registration_keyword",
-            ),
-
-            (
-                "licence",
-                LICENCE_PATTERN,
-                "licence_keyword",
-            ),
-
-            (
-                "language",
-                LANGUAGE_PATTERN,
-                "language_keyword",
-            ),
-
-            (
-                "work_authorization",
-                WORK_AUTH_PATTERN,
-                "work_authorization_keyword",
-            ),
-
-            (
-                "availability",
-                AVAILABILITY_PATTERN,
-                "availability_keyword",
-            ),
-
-            (
-                "security_clearance",
-                SECURITY_CLEARANCE_PATTERN,
-                "security_clearance_keyword",
-            ),
-
-            (
-                "physical_requirement",
-                PHYSICAL_REQUIREMENT_PATTERN,
-                "physical_requirement_keyword",
-            ),
-        ]
-
-
-        for (
-            requirement_type,
-            pattern,
-            rule_name,
-        ) in category_patterns:
-
-            if pattern.search(
-                unit
-            ):
-
-                mentions.append(
-                    create_mention(
-                        requirement_type,
-                        unit,
-                        level,
-                        rule_name,
-                    )
-                )
-
-                matched = True
-
-
-        if (
-            CERTIFICATION_PATTERN.search(
-                unit
-            )
-
-            and not
-            NON_REQUIREMENT_CERTIFICATION_PATTERN.search(
-                unit
-            )
-        ):
-
-            mentions.append(
-                create_mention(
-                    "certification",
-                    unit,
-                    level,
-                    "certification_keyword",
-                )
-            )
-
-            matched = True
-
-
-        if TOOL_PATTERN.search(
+        elif DEMONSTRATED_EXPERIENCE_PATTERN.search(
             unit
         ):
-
             mentions.append(
                 create_mention(
-                    "tool",
+                    "experience",
                     unit,
                     level,
-                    "tool_requirement_cue",
+                    "demonstrated_experience",
+                    section=section,
                 )
             )
-
             matched = True
 
+    category_patterns = [
+        (
+            "education",
+            EDUCATION_PATTERN,
+            "education_keyword",
+        ),
+        (
+            "professional_registration",
+            PROFESSIONAL_REGISTRATION_PATTERN,
+            "professional_registration_keyword",
+        ),
+        (
+            "licence",
+            LICENCE_PATTERN,
+            "licence_keyword",
+        ),
+        (
+            "language",
+            LANGUAGE_PATTERN,
+            "language_keyword",
+        ),
+        (
+            "work_authorization",
+            WORK_AUTH_PATTERN,
+            "work_authorization_keyword",
+        ),
+        (
+            "availability",
+            AVAILABILITY_PATTERN,
+            "availability_keyword",
+        ),
+        (
+            "security_clearance",
+            SECURITY_CLEARANCE_PATTERN,
+            "security_clearance_keyword",
+        ),
+        (
+            "physical_requirement",
+            PHYSICAL_REQUIREMENT_PATTERN,
+            "physical_requirement_keyword",
+        ),
+    ]
 
-        elif DOMAIN_KNOWLEDGE_PATTERN.search(
-            unit
-        ):
-
+    for (
+        requirement_type,
+        pattern,
+        rule_name,
+    ) in category_patterns:
+        if pattern.search(unit):
             mentions.append(
                 create_mention(
-                    "domain_knowledge",
+                    requirement_type,
                     unit,
                     level,
-                    "domain_knowledge_cue",
+                    rule_name,
+                    section=section,
                 )
             )
-
             matched = True
 
+    if (
+        CERTIFICATION_PATTERN.search(unit)
+        and not NON_REQUIREMENT_CERTIFICATION_PATTERN.search(unit)
+    ):
+        mentions.append(
+            create_mention(
+                "certification",
+                unit,
+                level,
+                "certification_keyword",
+                section=section,
+            )
+        )
+        matched = True
 
-        elif SKILL_PATTERN.search(
-            unit
+    if TOOL_PATTERN.search(unit):
+        mentions.append(
+            create_mention(
+                "tool",
+                unit,
+                level,
+                "tool_requirement_cue",
+                section=section,
+            )
+        )
+        matched = True
+
+    elif DOMAIN_KNOWLEDGE_PATTERN.search(unit):
+        mentions.append(
+            create_mention(
+                "domain_knowledge",
+                unit,
+                level,
+                "domain_knowledge_cue",
+                section=section,
+            )
+        )
+        matched = True
+
+    elif SKILL_PATTERN.search(unit):
+        mentions.append(
+            create_mention(
+                "skill",
+                unit,
+                level,
+                "skill_requirement_cue",
+                section=section,
+            )
+        )
+        matched = True
+
+    elif NAMED_SKILL_REQUIREMENT_PATTERN.search(unit):
+        mentions.append(
+            create_mention(
+                "skill",
+                unit,
+                level,
+                "named_skill_requirement",
+                section=section,
+            )
+        )
+        matched = True
+
+    # The reverse "X experience" rule is intentionally limited to candidate-
+    # focused sections. In company/role prose, phrases such as "customer
+    # experience" are usually not requirements and were a major source of
+    # false-positive skills.
+    elif (
+        section.section_type
+        in {"requirements", "preferred"}
+        and REVERSE_SKILL_EXPERIENCE_PATTERN.search(unit)
+    ):
+        mentions.append(
+            create_mention(
+                "skill",
+                unit,
+                level,
+                "reverse_experience_skill_cue",
+                section=section,
+            )
+        )
+        matched = True
+
+    # Responsibilities are still valuable evidence, particularly for tools and
+    # soft skills. Retain action-oriented statements as low-weight skill
+    # candidates; the atomic extractor performs the actual skill filtering.
+    if (
+        not matched
+        and section.section_type == "responsibilities"
+        and re.match(
+            r"^(?:build|create|develop|prepare|perform|conduct|analyse|analyze|model|use|manage|lead|present|communicate|collaborate|partner|negotiate|design|implement|maintain|research|forecast)\b",
+            unit,
+            re.IGNORECASE,
+        )
+    ):
+        mentions.append(
+            create_mention(
+                "skill",
+                unit,
+                level,
+                "responsibility_action_skill",
+                section=section,
+            )
+        )
+        matched = True
+
+    if (
+        not matched
+        and GENERAL_REQUIREMENT_PATTERN.search(unit)
+    ):
+        mentions.append(
+            create_mention(
+                "other",
+                unit,
+                level,
+                "general_requirement_cue",
+                section=section,
+            )
+        )
+
+    return mentions
+
+
+def extract_requirements(
+    text,
+    source_field=None,
+):
+    if not text:
+        return []
+
+    mentions = []
+
+    sections = split_job_sections(
+        text,
+        source_field=source_field,
+    )
+
+    for section in sections:
+        # Company marketing copy, benefits, application instructions and legal
+        # boilerplate should not contribute skills or requirements. This is the
+        # main precision safeguard introduced by the section-aware extractor.
+        if section.is_ignored:
+            continue
+
+        for unit in split_requirement_units(
+            section.text
         ):
-
-            mentions.append(
-                create_mention(
-                    "skill",
+            mentions.extend(
+                _extract_unit_mentions(
                     unit,
-                    level,
-                    "skill_requirement_cue",
+                    section,
                 )
             )
-
-            matched = True
-
-
-        elif (
-            NAMED_SKILL_REQUIREMENT_PATTERN.search(
-                unit
-            )
-        ):
-
-            mentions.append(
-                create_mention(
-                    "skill",
-                    unit,
-                    level,
-                    "named_skill_requirement",
-                )
-            )
-
-            matched = True
-
-
-        elif (
-            REVERSE_SKILL_EXPERIENCE_PATTERN.search(
-                unit
-            )
-        ):
-
-            mentions.append(
-                create_mention(
-                    "skill",
-                    unit,
-                    level,
-                    "reverse_experience_skill_cue",
-                )
-            )
-
-            matched = True
-
-
-        if (
-            not matched
-
-            and
-            GENERAL_REQUIREMENT_PATTERN.search(
-                unit
-            )
-        ):
-
-            mentions.append(
-                create_mention(
-                    "other",
-                    unit,
-                    level,
-                    "general_requirement_cue",
-                )
-            )
-
 
     unique_mentions = {}
 
-
     for mention in mentions:
-
         key = (
             mention.requirement_type,
             mention.normalized_text,
         )
 
-        unique_mentions[
-            key
-        ] = mention
+        existing = unique_mentions.get(key)
 
+        if existing is None:
+            unique_mentions[key] = mention
+            continue
+
+        # If the same sentence appears in multiple source sections, retain the
+        # higher-priority interpretation. Required > preferred > unknown.
+        strength = {
+            "unknown": 0,
+            "preferred": 1,
+            "required": 2,
+        }
+
+        if strength.get(mention.requirement_level, 0) > strength.get(
+            existing.requirement_level,
+            0,
+        ):
+            unique_mentions[key] = mention
 
     return list(
         unique_mentions.values()

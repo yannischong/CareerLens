@@ -138,7 +138,8 @@ def extract_job_requirements(
 
             mentions = (
                 extract_requirements_from_text(
-                    source_text
+                    source_text,
+                    source_field=source_field,
                 )
             )
 

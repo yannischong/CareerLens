@@ -443,7 +443,8 @@ def _store_requirements(
 
     mentions = (
         extract_requirements(
-            description
+            description,
+            source_field="description",
         )
         if description
         else []
@@ -558,6 +559,9 @@ def _store_requirement_concepts(
                 mention.raw_text,
                 mention
                 .requirement_type,
+                structured_value=(
+                    mention.structured_value
+                ),
             )
         )
 

@@ -3,6 +3,7 @@ import re
 
 from src.taxonomy.skill_classifier import (
     canonicalize_hard_skill,
+    find_hard_skills,
     find_soft_skills,
     reduce_action_phrase,
 )
@@ -916,12 +917,113 @@ def extract_capture(
     return None
 
 
+def _section_weight(
+    structured_value,
+    concept_type,
+):
+    metadata = structured_value or {}
+
+    if concept_type == "hard_skill":
+        return float(
+            metadata.get(
+                "section_hard_skill_weight",
+                1.0,
+            )
+        )
+
+    if concept_type == "soft_skill":
+        return float(
+            metadata.get(
+                "section_soft_skill_weight",
+                1.0,
+            )
+        )
+
+    return float(
+        metadata.get(
+            "section_general_weight",
+            1.0,
+        )
+    )
+
+
+def _apply_section_confidence(
+    candidate,
+    structured_value,
+):
+    result = dict(candidate)
+    confidence = result.get("confidence")
+
+    if confidence is None:
+        return result
+
+    weight = _section_weight(
+        structured_value,
+        result.get("concept_type"),
+    )
+
+    result["confidence"] = round(
+        float(confidence) * weight,
+        3,
+    )
+
+    return result
+
+
 def extract_atomic_concepts(
     raw_text,
     requirement_type,
+    structured_value=None,
 ):
     if not raw_text:
         return []
+
+
+    results = []
+    seen = set()
+
+    # High-confidence named tools/techniques and soft-skill expressions can
+    # appear anywhere inside an otherwise useful requirement sentence. Scan
+    # the complete sentence before applying the older capture rules so obvious
+    # tools such as Excel/Bloomberg/AWS are not lost merely because the wording
+    # does not match a regex template.
+    if requirement_type in {
+        "skill",
+        "tool",
+        "domain_knowledge",
+        "experience",
+        "other",
+    }:
+        direct_matches = (
+            find_hard_skills(raw_text)
+            + find_soft_skills(raw_text)
+        )
+
+        for direct_match in direct_matches:
+            weighted = _apply_section_confidence(
+                direct_match,
+                structured_value,
+            )
+
+            if weighted.get("confidence", 1.0) < 0.50:
+                continue
+
+            key = (
+                weighted["concept_type"],
+                weighted["normalized_key"],
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            results.append(
+                {
+                    **weighted,
+                    "group_operator": "all_of",
+                    "group_is_open": False,
+                }
+            )
 
 
     capture = extract_capture(
@@ -930,7 +1032,7 @@ def extract_atomic_concepts(
     )
 
     if capture is None:
-        return []
+        return results
 
 
     capture = clean_candidate(
@@ -938,7 +1040,7 @@ def extract_atomic_concepts(
     )
 
     if not capture:
-        return []
+        return results
 
 
     # Recover education lists where a
@@ -997,10 +1099,6 @@ def extract_atomic_concepts(
         capture,
         group_operator,
     )
-
-
-    results = []
-    seen = set()
 
 
     for candidate in candidates:
@@ -1072,9 +1170,22 @@ def extract_atomic_concepts(
                     )
 
 
+                    weighted_soft = (
+                        _apply_section_confidence(
+                            soft_match,
+                            structured_value,
+                        )
+                    )
+
+                    if weighted_soft.get(
+                        "confidence",
+                        1.0,
+                    ) < 0.50:
+                        continue
+
                     results.append(
                         {
-                            **soft_match,
+                            **weighted_soft,
 
                             "group_operator":
                                 group_operator,
@@ -1180,19 +1291,27 @@ def extract_atomic_concepts(
         )
 
 
+        weighted_candidate = (
+            _apply_section_confidence(
+                {
+                    "raw_text": candidate,
+                    "normalized_key": normalized,
+                    "concept_type": concept_type,
+                    "confidence": confidence,
+                },
+                structured_value,
+            )
+        )
+
+        if weighted_candidate.get(
+            "confidence",
+            1.0,
+        ) < 0.50:
+            continue
+
         results.append(
             {
-                "raw_text":
-                    candidate,
-
-                "normalized_key":
-                    normalized,
-
-                "concept_type":
-                    concept_type,
-
-                "confidence":
-                    confidence,
+                **weighted_candidate,
 
                 "group_operator":
                     group_operator,

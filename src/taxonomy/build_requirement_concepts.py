@@ -38,7 +38,8 @@ def build_requirement_concepts(
             SELECT
                 requirement_mention_id,
                 requirement_type,
-                raw_text
+                raw_text,
+                structured_value
 
             FROM job_requirement_mentions
 
@@ -61,7 +62,8 @@ def build_requirement_concepts(
             SELECT DISTINCT
                 m.requirement_mention_id,
                 m.requirement_type,
-                m.raw_text
+                m.raw_text,
+                m.structured_value
 
             FROM job_requirement_mentions
                 AS m
@@ -134,6 +136,12 @@ def build_requirement_concepts(
                 mention[
                     "requirement_type"
                 ],
+                structured_value=(
+                    mention.get(
+                        "structured_value"
+                    )
+                    or {}
+                ),
             )
         )
 

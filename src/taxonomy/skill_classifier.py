@@ -344,6 +344,59 @@ HARD_SKILL_ALIASES = {
 }
 
 
+# Broad cross-profession aliases used as a high-confidence fallback.
+# This is intentionally a compact vocabulary of widely used tools and
+# named techniques, not a profession-specific skills list. Model-backed
+# extraction can extend beyond this vocabulary in Phase 2.
+HARD_SKILL_ALIASES.update({
+    "python": ("Python", "python"),
+    "sql": ("SQL", "sql"),
+    "java": ("Java", "java"),
+    "javascript": ("JavaScript", "javascript"),
+    "typescript": ("TypeScript", "typescript"),
+    "c++": ("C++", "c++"),
+    "c#": ("C#", "c#"),
+    "powerpoint": ("PowerPoint", "powerpoint"),
+    "tableau": ("Tableau", "tableau"),
+    "google analytics": ("Google Analytics", "google analytics"),
+    "seo": ("SEO", "seo"),
+    "bloomberg": ("Bloomberg", "bloomberg"),
+    "bloomberg terminal": ("Bloomberg", "bloomberg"),
+    "capital iq": ("S&P Capital IQ", "s and p capital iq"),
+    "s&p capital iq": ("S&P Capital IQ", "s and p capital iq"),
+    "s and p capital iq": ("S&P Capital IQ", "s and p capital iq"),
+    "factset": ("FactSet", "factset"),
+    "refinitiv": ("Refinitiv", "refinitiv"),
+    "eikon": ("Refinitiv Eikon", "refinitiv eikon"),
+    "valuation": ("Valuation", "valuation"),
+    "valuation analysis": ("Valuation", "valuation"),
+    "comparable company analysis": ("Comparable Company Analysis", "comparable company analysis"),
+    "comps analysis": ("Comparable Company Analysis", "comparable company analysis"),
+    "precedent transaction analysis": ("Precedent Transaction Analysis", "precedent transaction analysis"),
+    "market research": ("Market Research", "market research"),
+    "market sizing": ("Market Sizing", "market sizing"),
+    "salesforce": ("Salesforce", "salesforce"),
+    "hubspot": ("HubSpot", "hubspot"),
+    "sap": ("SAP", "sap"),
+    "workday": ("Workday", "workday"),
+    "jira": ("Jira", "jira"),
+    "confluence": ("Confluence", "confluence"),
+    "aws": ("AWS", "aws"),
+    "amazon web services": ("AWS", "aws"),
+    "microsoft azure": ("Microsoft Azure", "microsoft azure"),
+    "azure": ("Microsoft Azure", "microsoft azure"),
+    "google cloud platform": ("Google Cloud Platform", "google cloud platform"),
+    "gcp": ("Google Cloud Platform", "google cloud platform"),
+    "snowflake": ("Snowflake", "snowflake"),
+    "databricks": ("Databricks", "databricks"),
+    "alteryx": ("Alteryx", "alteryx"),
+    "autocad": ("AutoCAD", "autocad"),
+    "solidworks": ("SolidWorks", "solidworks"),
+    "matlab": ("MATLAB", "matlab"),
+    "figma": ("Figma", "figma"),
+})
+
+
 LEADING_ACTION_PATTERN = re.compile(
     r"^(?:"
     r"build|"
@@ -426,6 +479,62 @@ def find_soft_skills(
                 )
 
                 break
+
+    return matches
+
+
+def find_hard_skills(
+    text,
+):
+    normalized = normalize_skill_text(
+        text
+    )
+
+    if not normalized:
+        return []
+
+    matches = []
+    seen = set()
+
+    # Longest aliases first so "financial modelling" wins over
+    # shorter overlapping terms. Very short aliases are deliberately
+    # excluded from free-text scanning because they create false positives.
+    aliases = sorted(
+        HARD_SKILL_ALIASES.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    )
+
+    for alias, canonical in aliases:
+        alias_normalized = normalize_skill_text(alias)
+
+        if len(alias_normalized) < 3:
+            continue
+
+        alias_pattern = re.compile(
+            r"(?<![a-z0-9+#])"
+            + re.escape(alias_normalized)
+            + r"(?![a-z0-9+#])",
+            re.IGNORECASE,
+        )
+
+        if not alias_pattern.search(normalized):
+            continue
+
+        canonical_name, canonical_key = canonical
+
+        if canonical_key in seen:
+            continue
+
+        seen.add(canonical_key)
+        matches.append(
+            {
+                "raw_text": canonical_name,
+                "normalized_key": canonical_key,
+                "concept_type": "hard_skill",
+                "confidence": 0.99,
+            }
+        )
 
     return matches
 
