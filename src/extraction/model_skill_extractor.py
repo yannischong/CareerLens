@@ -197,7 +197,37 @@ def _select_sections(
             section_text
         )
 
-    return selected
+    if selected:
+        return selected
+
+    # Section detection is a precision aid, not a hard gate. Provider pages
+    # sometimes flatten or rename headings in ways our section classifier has
+    # not seen yet. In that case, send the usable description as a neutral
+    # section rather than silently skipping model extraction altogether.
+    fallback_text = (
+        text[:MAX_SECTION_CHARACTERS]
+        .strip()
+    )
+
+    if fallback_text:
+        message = (
+            "[CareerLens skill model] section selector found 0 eligible "
+            "sections; using full-description fallback."
+        )
+        logger.info(message)
+        print(message, flush=True)
+
+        return [
+            JobSection(
+                section_type="other",
+                heading=(
+                    "Job description fallback"
+                ),
+                text=fallback_text,
+            )
+        ]
+
+    return []
 
 
 def _build_user_payload(
@@ -514,7 +544,20 @@ def enrich_manual_requirement_mentions(
     """
 
     if not text:
+        message = (
+            "[CareerLens skill model] enrichment invoked with empty text; "
+            "using rule-based extraction."
+        )
+        logger.info(message)
+        print(message, flush=True)
         return mentions
+
+    entry_message = (
+        "[CareerLens skill model] enrichment invoked "
+        f"(characters={len(text)}, rule_mentions={len(mentions)})."
+    )
+    logger.info(entry_message)
+    print(entry_message, flush=True)
 
     if not model_skill_extraction_enabled():
         message = (
@@ -531,6 +574,12 @@ def enrich_manual_requirement_mentions(
     )
 
     if not sections:
+        message = (
+            "[CareerLens skill model] no usable section text after fallback; "
+            "using rule-based extraction."
+        )
+        logger.info(message)
+        print(message, flush=True)
         return mentions
 
     start_message = (
