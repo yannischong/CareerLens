@@ -827,7 +827,7 @@ export function ManualJobImport({
       className="mt-4 scroll-mt-6"
     >
 
-      <div className="mx-auto max-w-4xl rounded-[2rem] border border-white/60 bg-white/95 p-3 text-left text-slate-900 shadow-2xl backdrop-blur-md sm:p-4">
+      <div className="mx-auto max-w-4xl rounded-3xl border border-white/20 bg-white/10 p-4 text-left text-slate-900 shadow-2xl backdrop-blur-md">
 
         <div className="rounded-3xl border border-white/20 bg-gradient-to-br from-[#0A66C2] via-[#0A66C2] to-[#004182] p-5 shadow-xl sm:p-6">
 

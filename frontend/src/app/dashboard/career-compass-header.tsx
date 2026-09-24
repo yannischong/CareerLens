@@ -418,11 +418,6 @@ export function CareerCompassHeader({
 
         <div className="mx-auto mt-9 max-w-4xl">
 
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-100">
-            Analyse a specific job
-          </p>
-
-
           <ManualJobImport
             onOpportunitySaved={
               onOpportunitySaved
