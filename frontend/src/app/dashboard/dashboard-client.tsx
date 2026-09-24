@@ -2518,7 +2518,7 @@ export default function DashboardClient({
   userEmail,
 }: DashboardClientProps) {
   const [
-    profile,
+    ,
     setProfile,
   ] =
     useState<
@@ -6685,148 +6685,278 @@ export default function DashboardClient({
         && (
           <div className="space-y-6 pt-6">
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <section
+        id="careercompass-resume-upload"
+        className="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      >
 
-        <section className="overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
 
-          <div className="flex items-start justify-between gap-4">
+          <div>
 
-            <div>
-
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0A66C2]">
-                Career profile
-              </p>
-
-              <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                {
-                  profile
-                    ?.profile_name
-                  ?? "My Profile"
-                }
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-600">
-                Your resume and application activity power your CareerCompass job comparisons and insights.
-              </p>
+            <h2 className="text-xl font-semibold">
+              Current Resume
+            </h2>
 
 
-              <button
-                type="button"
-                onClick={() => {
-                  document
-                    .getElementById(
-                      "careercompass-resume-upload"
-                    )
-                    ?.scrollIntoView(
-                      {
-                        behavior:
-                          "smooth",
-                        block:
-                          "start",
-                      }
-                    );
-                }}
-                className="mt-4 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182]"
-              >
-                Upload Resume
-              </button>
-
-            </div>
-
-
-            <div className="rounded-xl bg-white px-4 py-3 text-center shadow-sm ring-1 ring-blue-100">
-              <p className="text-2xl font-bold text-[#0A66C2]">
-                {
-                  resumes.length
-                }
-              </p>
-
-              <p className="text-xs text-slate-500">
-                resume{
-                  resumes.length
-                  === 1
-                    ? ""
-                    : "s"
-                }
-              </p>
-            </div>
-
-          </div>
-
-        </section>
-
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-          <div className="flex items-start justify-between gap-4">
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Job search allowance
-              </p>
-
-              <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                Provider Searches
-              </h2>
-            </div>
-
-
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0A66C2]">
-              {
-                quota
-                  ?.remaining
-                ?? 0
-              } remaining
-            </span>
+            <p className="mt-1 max-w-2xl text-sm text-gray-600">
+              CareerCompass keeps one resume for your profile. Every job comparison uses this resume.
+            </p>
 
           </div>
 
 
-          <div className="mt-5 flex items-end gap-2">
-            <p className="text-4xl font-bold tracking-tight text-slate-900">
+          {
+            resumes[0]
+            && (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Active resume
+              </span>
+            )
+          }
+
+        </div>
+
+
+        {
+          resumes[0]
+          ? (
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+
+              <p className="font-semibold text-slate-900">
+                {
+                  resumes[0]
+                    .original_filename
+                }
+              </p>
+
+
+              <p className="mt-1 text-xs text-gray-500">
+                {
+                  resumes[0]
+                    .file_type
+                    .toUpperCase()
+                }
+
+                {" · "}
+
+                {
+                  resumes[0]
+                    .claim_count
+                }{" "}
+                extracted profile points
+
+                {" · "}
+
+                {
+                  resumes[0]
+                    .evidence_count
+                }{" "}
+                supporting details
+              </p>
+
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Uploading another resume will replace this one. Previous resume-derived profile evidence will no longer be used in job comparisons.
+              </p>
+
+            </div>
+          )
+          : (
+            <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4 text-sm text-slate-600">
+              No resume uploaded yet. Add one to enable resume comparisons.
+            </div>
+          )
+        }
+
+
+        <form
+          onSubmit={
+            handleResumeUpload
+          }
+          className="mt-5 flex flex-col gap-3 md:flex-row md:items-center"
+        >
+
+          <input
+            id="careercompass-resume-file"
+            type="file"
+
+            accept={
+              ".pdf,.docx,.txt"
+            }
+
+            onChange={
+              (event) =>
+                setSelectedFile(
+                  event.target
+                    .files?.[0]
+                  ?? null
+                )
+            }
+
+            className="sr-only"
+          />
+
+
+          <label
+            htmlFor="careercompass-resume-file"
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-bold text-[#0A66C2] shadow-sm transition hover:bg-blue-100"
+          >
+            {
+              resumes[0]
+                ? "Choose Replacement"
+                : "Choose Resume"
+            }
+          </label>
+
+
+          <div className="min-w-0 flex-1">
+
+            <p className="truncate text-sm text-slate-600">
               {
-                quota
-                  ?.remaining
-                ?? 0
+                selectedFile
+                  ? selectedFile.name
+                  : resumes[0]
+                    ? "Choose a new file to replace your current resume"
+                    : "No file selected"
               }
             </p>
 
-            <p className="pb-1 text-sm text-slate-500">
-              of {
-                quota
-                  ?.limit
-                ?? 2
-              } searches left
+          </div>
+
+
+          <button
+            type="submit"
+
+            disabled={
+              uploading
+              || !selectedFile
+            }
+
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {
+              uploading
+              && (
+                <LoadingSpinner
+                  label={
+                    resumes[0]
+                      ? "Replacing resume"
+                      : "Processing resume"
+                  }
+                />
+              )
+            }
+
+            {
+              uploading
+                ? (
+                  resumes[0]
+                    ? "Replacing..."
+                    : "Processing..."
+                )
+                : (
+                  resumes[0]
+                    ? "Replace Resume"
+                    : "Upload Resume"
+                )
+            }
+          </button>
+
+        </form>
+
+
+        {
+          resumes[0]
+          && selectedFile
+          && (
+            <p className="mt-3 text-xs font-medium text-amber-700">
+              Replacing your resume will refresh CareerCompass profile matching using the new file.
             </p>
+          )
+        }
+
+
+        {resumeMessage && (
+          <div className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+            {
+              resumeMessage
+            }
+          </div>
+        )}
+
+      </section>
+
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+        <div className="flex items-start justify-between gap-4">
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              Job search allowance
+            </p>
+
+            <h2 className="mt-1 text-xl font-semibold text-slate-900">
+              Provider Searches
+            </h2>
           </div>
 
 
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-[#0A66C2] transition-all"
-              style={{
-                width:
-                  `${quota && quota.limit > 0
-                    ? Math.max(
-                        0,
-                        Math.min(
-                          100,
-                          (quota.remaining / quota.limit) * 100
-                        )
-                      )
-                    : 0}%`,
-              }}
-            />
-          </div>
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0A66C2]">
+            {
+              quota
+                ?.remaining
+              ?? 0
+            } remaining
+          </span>
+
+        </div>
 
 
-          <p className="mt-3 text-xs text-slate-500">
-            Filters do not use another provider search.
+        <div className="mt-5 flex items-end gap-2">
+          <p className="text-4xl font-bold tracking-tight text-slate-900">
+            {
+              quota
+                ?.remaining
+              ?? 0
+            }
           </p>
 
-        </section>
+          <p className="pb-1 text-sm text-slate-500">
+            of {
+              quota
+                ?.limit
+              ?? 2
+            } searches left
+          </p>
+        </div>
 
-      </div>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-[#0A66C2] transition-all"
+            style={{
+              width:
+                `${quota && quota.limit > 0
+                  ? Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        (quota.remaining / quota.limit) * 100
+                      )
+                    )
+                  : 0}%`,
+            }}
+          />
+        </div>
+
+
+        <p className="mt-3 text-xs text-slate-500">
+          Filters do not use another provider search.
+        </p>
+
+      </section>
 
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -7356,207 +7486,7 @@ export default function DashboardClient({
       </section>
 
 
-      <section
-        id="careercompass-resume-upload"
-        className="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
-
-          <div>
-
-            <h2 className="text-xl font-semibold">
-              Current Resume
-            </h2>
-
-
-            <p className="mt-1 max-w-2xl text-sm text-gray-600">
-              CareerCompass keeps one resume for your profile. Every job comparison uses this resume.
-            </p>
-
-          </div>
-
-
-          {
-            resumes[0]
-            && (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                Active resume
-              </span>
-            )
-          }
-
-        </div>
-
-
-        {
-          resumes[0]
-          ? (
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-
-              <p className="font-semibold text-slate-900">
-                {
-                  resumes[0]
-                    .original_filename
-                }
-              </p>
-
-
-              <p className="mt-1 text-xs text-gray-500">
-                {
-                  resumes[0]
-                    .file_type
-                    .toUpperCase()
-                }
-
-                {" · "}
-
-                {
-                  resumes[0]
-                    .claim_count
-                }{" "}
-                extracted profile points
-
-                {" · "}
-
-                {
-                  resumes[0]
-                    .evidence_count
-                }{" "}
-                supporting details
-              </p>
-
-
-              <p className="mt-3 text-xs leading-5 text-slate-500">
-                Uploading another resume will replace this one. Previous resume-derived profile evidence will no longer be used in job comparisons.
-              </p>
-
-            </div>
-          )
-          : (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4 text-sm text-slate-600">
-              No resume uploaded yet. Add one to enable resume comparisons.
-            </div>
-          )
-        }
-
-
-        <form
-          onSubmit={
-            handleResumeUpload
-          }
-          className="mt-5 flex flex-col gap-3 md:flex-row md:items-center"
-        >
-
-          <input
-            id="careercompass-resume-file"
-            type="file"
-
-            accept={
-              ".pdf,.docx,.txt"
-            }
-
-            onChange={
-              (event) =>
-                setSelectedFile(
-                  event.target
-                    .files?.[0]
-                  ?? null
-                )
-            }
-
-            className="sr-only"
-          />
-
-
-          <label
-            htmlFor="careercompass-resume-file"
-            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-bold text-[#0A66C2] shadow-sm transition hover:bg-blue-100"
-          >
-            {
-              resumes[0]
-                ? "Choose Replacement"
-                : "Choose Resume"
-            }
-          </label>
-
-
-          <div className="min-w-0 flex-1">
-
-            <p className="truncate text-sm text-slate-600">
-              {
-                selectedFile
-                  ? selectedFile.name
-                  : resumes[0]
-                    ? "Choose a new file to replace your current resume"
-                    : "No file selected"
-              }
-            </p>
-
-          </div>
-
-
-          <button
-            type="submit"
-
-            disabled={
-              uploading
-              || !selectedFile
-            }
-
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {
-              uploading
-              && (
-                <LoadingSpinner
-                  label={
-                    resumes[0]
-                      ? "Replacing resume"
-                      : "Processing resume"
-                  }
-                />
-              )
-            }
-
-            {
-              uploading
-                ? (
-                  resumes[0]
-                    ? "Replacing..."
-                    : "Processing..."
-                )
-                : (
-                  resumes[0]
-                    ? "Replace Resume"
-                    : "Upload Resume"
-                )
-            }
-          </button>
-
-        </form>
-
-
-        {
-          resumes[0]
-          && selectedFile
-          && (
-            <p className="mt-3 text-xs font-medium text-amber-700">
-              Replacing your resume will refresh CareerCompass profile matching using the new file.
-            </p>
-          )
-        }
-
-
-        {resumeMessage && (
-          <div className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-            {
-              resumeMessage
-            }
-          </div>
-        )}
-
-      </section>
 
           </div>
         )
