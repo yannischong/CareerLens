@@ -37,6 +37,7 @@ SECTION_RULES = [
             r"who you are|about you|your background|candidate profile|"
             r"what we need|you should have|must have|must-have|"
             r"success in this role requires|what makes you successful|"
+            r"how you succeed|how you(?:'ll| will) succeed|what helps you succeed|"
             r"knowledge skills(?: and| &) abilities|technical skills|soft skills"
             r")$",
             re.IGNORECASE,
@@ -61,7 +62,7 @@ SECTION_RULES = [
             r"^(?:"
             r"the role|about the role|role overview|job overview|"
             r"position overview|the opportunity|about the opportunity|"
-            r"position summary|job summary|role summary"
+            r"position summary|job summary|role summary|why join"
             r")$",
             re.IGNORECASE,
         ),

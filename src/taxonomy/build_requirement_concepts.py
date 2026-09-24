@@ -293,7 +293,7 @@ def build_requirement_concepts(
                             :requirement_mention_id,
                             :concept_id,
                             :raw_concept_text,
-                            'rule_based_atomic',
+                            :extraction_method,
                             :confidence,
                             :extractor_version,
                             :group_operator,
@@ -340,6 +340,12 @@ def build_requirement_concepts(
                             candidate[
                                 "raw_text"
                             ],
+
+                        "extraction_method":
+                            candidate.get(
+                                "extraction_method",
+                                "rule_based_atomic",
+                            ),
 
                         "confidence":
                             candidate.get(

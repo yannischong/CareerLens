@@ -5,6 +5,7 @@ from src.taxonomy.skill_classifier import (
     canonicalize_hard_skill,
     find_hard_skills,
     find_soft_skills,
+    normalize_skill_text,
     reduce_action_phrase,
 )
 
@@ -982,6 +983,135 @@ def extract_atomic_concepts(
     results = []
     seen = set()
 
+    metadata = structured_value or {}
+    model_processed = bool(
+        metadata.get(
+            "model_skill_processed"
+        )
+    )
+
+    for model_skill in (
+        metadata.get(
+            "model_skills"
+        )
+        or []
+    ):
+        if not isinstance(
+            model_skill,
+            dict,
+        ):
+            continue
+
+        name = str(
+            model_skill.get(
+                "canonical_name",
+                "",
+            )
+        ).strip()
+
+        concept_type = (
+            model_skill.get(
+                "skill_type"
+            )
+        )
+
+        if (
+            not name
+            or concept_type
+            not in {
+                "hard_skill",
+                "soft_skill",
+            }
+        ):
+            continue
+
+        try:
+            confidence = float(
+                model_skill.get(
+                    "confidence",
+                    0.0,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            continue
+
+        if confidence < 0.65:
+            continue
+
+        if concept_type == "hard_skill":
+            canonical_name, normalized_key = (
+                canonicalize_hard_skill(
+                    name
+                )
+            )
+        else:
+            known_soft = (
+                find_soft_skills(
+                    name
+                )
+            )
+
+            if known_soft:
+                canonical_name = (
+                    known_soft[0][
+                        "raw_text"
+                    ]
+                )
+                normalized_key = (
+                    known_soft[0][
+                        "normalized_key"
+                    ]
+                )
+            else:
+                canonical_name = name
+                normalized_key = (
+                    normalize_skill_text(
+                        name
+                    )
+                )
+
+        if not normalized_key:
+            continue
+
+        weighted = (
+            _apply_section_confidence(
+                {
+                    "raw_text": canonical_name,
+                    "normalized_key": normalized_key,
+                    "concept_type": concept_type,
+                    "confidence": confidence,
+                    "extraction_method": "model_verified",
+                },
+                structured_value,
+            )
+        )
+
+        if weighted.get(
+            "confidence",
+            0.0,
+        ) < 0.50:
+            continue
+
+        key = (
+            concept_type,
+            normalized_key,
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        results.append(
+            {
+                **weighted,
+                "group_operator": "all_of",
+                "group_is_open": False,
+            }
+        )
+
     # High-confidence named tools/techniques and soft-skill expressions can
     # appear anywhere inside an otherwise useful requirement sentence. Scan
     # the complete sentence before applying the older capture rules so obvious
@@ -1024,6 +1154,19 @@ def extract_atomic_concepts(
                     "group_is_open": False,
                 }
             )
+
+
+    if (
+        model_processed
+        and requirement_type in {
+            "skill",
+            "tool",
+            "domain_knowledge",
+            "experience",
+            "other",
+        }
+    ):
+        return results
 
 
     capture = extract_capture(

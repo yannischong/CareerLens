@@ -24,6 +24,9 @@ from src.collection.models import (
 from src.extraction.rules import (
     extract_requirements,
 )
+from src.extraction.model_skill_extractor import (
+    enrich_manual_requirement_mentions,
+)
 from src.taxonomy.atomic import (
     extract_atomic_concepts,
 )
@@ -451,6 +454,16 @@ def _store_requirements(
     )
 
 
+    if description:
+        mentions = (
+            enrich_manual_requirement_mentions(
+                description,
+                mentions,
+                source_field="description",
+            )
+        )
+
+
     mention_rows = []
 
 
@@ -684,7 +697,7 @@ def _store_requirement_concepts(
                         :requirement_mention_id,
                         :concept_id,
                         :raw_concept_text,
-                        'rule_based_atomic',
+                        :extraction_method,
                         :confidence,
                         :extractor_version,
                         :group_operator,
@@ -701,6 +714,10 @@ def _store_requirement_concepts(
                         raw_concept_text =
                             EXCLUDED
                             .raw_concept_text,
+
+                        extraction_method =
+                            EXCLUDED
+                            .extraction_method,
 
                         confidence =
                             EXCLUDED.confidence,
@@ -725,6 +742,12 @@ def _store_requirement_concepts(
                         candidate[
                             "raw_text"
                         ],
+
+                    "extraction_method":
+                        candidate.get(
+                            "extraction_method",
+                            "rule_based_atomic",
+                        ),
 
                     "confidence":
                         candidate.get(
