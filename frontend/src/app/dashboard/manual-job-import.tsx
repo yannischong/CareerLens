@@ -256,7 +256,7 @@ export function ManualJobImport({
     open,
     setOpen,
   ] = useState(
-    false
+    true
   );
 
 
@@ -845,11 +845,8 @@ export function ManualJobImport({
       >
         {
           open
-            ? "Close job link"
-            : (
-              "Don’t see the role you want? "
-              + "CLICK HERE and paste a job listing link to tailor your resume for it"
-            )
+            ? "Hide job link analyser"
+            : "Show job link analyser"
         }
       </button>
 
@@ -862,12 +859,12 @@ export function ManualJobImport({
             <div>
 
               <h3 className="text-lg font-bold">
-                Analyse a job from anywhere
+                Job listing link
               </h3>
 
 
               <p className="mt-1 text-sm text-slate-600">
-                Paste a public job listing URL. Manual job imports do not use one of your two provider searches.
+                Paste a public job listing URL. This does not use one of your provider searches.
               </p>
 
             </div>

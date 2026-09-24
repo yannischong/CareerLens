@@ -157,7 +157,7 @@ export function CareerCompassHelp({
 
 
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Use CareerCompass to find roles, understand what each role asks for, compare those requirements with your resume, and keep your applications organised.
+              Use CareerCompass to analyse roles against your resume, understand what employers are asking for, and keep your applications organised.
             </p>
 
           </div>
@@ -198,9 +198,9 @@ export function CareerCompassHelp({
 
               <HelpStep
                 number="2"
-                title="Find a role"
+                title="Add a role"
               >
-                Use <strong>Search Jobs</strong> to discover roles, or paste a public job listing link if you already have a specific role in mind. Manual job links do not use one of your two provider searches.
+                Paste a public job listing link to analyse a specific role against your resume. If you want to discover additional opportunities, use <strong>Search for more options</strong>. Manual job links do not use your provider-search allowance.
               </HelpStep>
 
 
@@ -208,7 +208,7 @@ export function CareerCompassHelp({
                 number="3"
                 title="Review the role"
               >
-                CareerCompass extracts the job requirements and separates search relevance from resume fit. A high search match means the role matches your search terms; it does not mean your resume is automatically a strong fit.
+                CareerCompass extracts the job requirements and evaluates them separately from your resume evidence. For roles found through provider search, Search Relevance remains separate from Resume Comparison.
               </HelpStep>
 
 
@@ -257,7 +257,7 @@ export function CareerCompassHelp({
 
 
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Review jobs returned by your search, inspect extracted requirements, and save interesting roles.
+                  Review roles you imported or found through search, inspect extracted requirements, and save interesting opportunities.
                 </p>
 
               </div>
@@ -317,7 +317,7 @@ export function CareerCompassHelp({
 
 
             <p className="mt-2 text-sm leading-6 text-blue-900">
-              Search Relevance tells you how closely a role matches your search. Resume Comparison tells you whether CareerCompass found supporting evidence in your profile for the role’s requirements. Eligibility checks are separate again. These signals answer different questions and should not be treated as a hiring probability.
+              For provider-search results, Search Relevance tells you how closely a role matches your search. Resume Comparison tells you whether CareerCompass found supporting evidence in your profile for the role’s requirements. Eligibility checks are separate again. These signals answer different questions and should not be treated as a hiring probability.
             </p>
 
           </section>

@@ -19,6 +19,10 @@ export default function Loading() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Getting your workspace ready. This can take a little longer after a period of inactivity.
         </p>
+
+        <p className="mt-3 text-xs font-medium text-slate-400 dark:text-slate-500">
+          Estimated time for initial startup: 15 seconds
+        </p>
       </div>
     </main>
   );

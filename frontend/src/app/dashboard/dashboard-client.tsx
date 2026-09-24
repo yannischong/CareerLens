@@ -5103,6 +5103,10 @@ export default function DashboardClient({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Getting your profile, applications and latest results ready. This can take a little longer after a period of inactivity.
           </p>
+
+          <p className="mt-3 text-xs font-medium text-slate-400 dark:text-slate-500">
+            Estimated time for initial startup: 15 seconds
+          </p>
         </div>
       </div>
     );
@@ -6706,26 +6710,9 @@ export default function DashboardClient({
               </p>
 
 
-              <button
-                type="button"
-                onClick={() => {
-                  document
-                    .getElementById(
-                      "careercompass-resume-upload"
-                    )
-                    ?.scrollIntoView(
-                      {
-                        behavior:
-                          "smooth",
-                        block:
-                          "start",
-                      }
-                    );
-                }}
-                className="mt-4 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182]"
-              >
-                Upload Resume
-              </button>
+              <p className="mt-4 text-sm font-semibold text-[#0A66C2]">
+                Upload resume below
+              </p>
 
             </div>
 

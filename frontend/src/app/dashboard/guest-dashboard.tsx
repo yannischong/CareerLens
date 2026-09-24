@@ -124,72 +124,71 @@ export default function GuestDashboard() {
 
 
           <div
-            id="careercompass-search"
+            id="careercompass-primary-action"
             className="mx-auto mt-9 max-w-4xl"
           >
 
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-100">
-              Find your next role
+              Tailor your resume for a specific role
+            </p>
+
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-blue-100">
+              Paste a public job listing link and CareerCompass will analyse it against your resume.
             </p>
 
 
-            <div className="mt-3 grid gap-3 rounded-2xl border border-white/25 bg-white/10 p-3 shadow-2xl backdrop-blur-md md:grid-cols-[2fr_1fr_auto]">
+            <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-white/25 bg-white/10 p-3 shadow-2xl backdrop-blur-md sm:flex-row">
 
               <input
-                type="text"
+                type="url"
                 disabled
-                aria-label="Role search requires sign in"
-                placeholder="Role, e.g. Data Analyst Intern"
-                className="min-h-12 cursor-not-allowed rounded-xl border border-white/20 bg-white/80 px-4 py-3 text-sm text-slate-500 outline-none placeholder:text-slate-400"
+                aria-label="Job listing import requires sign in"
+                placeholder="https://company.com/careers/job..."
+                className="min-h-12 flex-1 cursor-not-allowed rounded-xl border border-white/20 bg-white/80 px-4 py-3 text-sm text-slate-500 outline-none placeholder:text-slate-400"
               />
 
 
-              <input
-                type="text"
+              <button
+                type="button"
                 disabled
-                aria-label="Location requires sign in"
-                value="Singapore"
-                readOnly
-                className="min-h-12 cursor-not-allowed rounded-xl border border-white/20 bg-white/80 px-4 py-3 text-sm text-slate-500 outline-none"
-              />
-
-
-              <div className="flex gap-2 md:flex-col lg:flex-row">
-
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex min-h-12 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-white/75 px-5 py-3 text-sm font-bold text-[#0A66C2] opacity-70"
-                >
-                  <LockIcon />
-                  Search Jobs
-                </button>
-
-
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex min-h-12 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-bold text-white/80 opacity-70"
-                >
-                  <LockIcon />
-                  Upload Resume
-                </button>
-
-              </div>
+                className="inline-flex min-h-12 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-white/75 px-5 py-3 text-sm font-bold text-[#0A66C2] opacity-70"
+              >
+                <LockIcon />
+                Analyse Job
+              </button>
 
             </div>
 
 
             <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-white/20 bg-[#061B35]/25 px-4 py-3 text-sm text-blue-50 backdrop-blur-sm sm:flex-row">
+
               <LockIcon />
 
               <span>
-                Sign up or log in to search roles, compare your resume and manage applications.
+                Sign up or log in to analyse a job against your resume.
               </span>
+
+            </div>
+
+
+            <div className="mt-6">
+
+              <p className="text-sm text-blue-100">
+                Looking for more opportunities?
+              </p>
+
+              <button
+                type="button"
+                disabled
+                className="mt-2 inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-bold text-white/80 opacity-70"
+              >
+                <LockIcon />
+                Search for more options
+              </button>
+
             </div>
 
           </div>
-
 
           <div className="mx-auto mt-9 max-w-6xl rounded-3xl border-2 border-white/80 bg-white/95 p-5 text-slate-900 shadow-2xl backdrop-blur-md sm:p-6">
 
@@ -215,7 +214,7 @@ export default function GuestDashboard() {
               {[
                 [
                   "Job Matches",
-                  "Search and review relevant roles",
+                  "Review imported or searched roles",
                 ],
                 [
                   "My Applications",
