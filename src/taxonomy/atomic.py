@@ -1,6 +1,12 @@
 import html
 import re
 
+from src.taxonomy.skill_classifier import (
+    canonicalize_hard_skill,
+    find_soft_skills,
+    reduce_action_phrase,
+)
+
 
 WHITESPACE_PATTERN = re.compile(
     r"\s+"
@@ -122,6 +128,15 @@ STRONG_SKILLS_PATTERN = re.compile(
 )
 
 
+NAMED_SKILL_CAPTURE_PATTERN = re.compile(
+    r"^(.+?)\s+skills?\s+"
+    r"(?:are\s+|is\s+)?"
+    r"(?:required|essential|preferred|desirable|important|necessary)"
+    r"\b",
+    re.IGNORECASE,
+)
+
+
 ABILITY_TO_USE_PATTERN = re.compile(
     r"\bability to use\s+(.+)",
     re.IGNORECASE,
@@ -155,6 +170,11 @@ TOOL_LIST_ITEM_PATTERN = re.compile(
 
 
 GENERIC_CAPTURE_PATTERNS = [
+    re.compile(
+        r"^(.+?)\s+experience\b",
+        re.IGNORECASE,
+    ),
+
     re.compile(
         r"\bproficiency in\s+(.+)",
         re.IGNORECASE,
@@ -197,6 +217,46 @@ GENERIC_CAPTURE_PATTERNS = [
 
     re.compile(
         r"\bskills in\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bexperience in\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bexpertise (?:in|with)\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bstrong command of\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bworking knowledge of\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bunderstanding of\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bcompetenc(?:y|e) in\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\btrack record (?:in|of)\s+(.+)",
+        re.IGNORECASE,
+    ),
+
+    re.compile(
+        r"\bbackground in\s+(.+)",
         re.IGNORECASE,
     ),
 ]
@@ -268,7 +328,12 @@ PROTECTED_AND_PATTERN = re.compile(
     r"written\s+and\s+verbal|"
     r"verbal\s+and\s+written|"
     r"analytical\s+and\s+problem[- ]solving|"
-    r"data\s+analysis\s+and\s+correlation"
+    r"data\s+analysis\s+and\s+correlation|"
+    r"research\s+and\s+development|"
+    r"mergers\s+and\s+acquisitions|"
+    r"sales\s+and\s+trading|"
+    r"profit\s+and\s+loss|"
+    r"terms\s+and\s+conditions"
     r")\b",
     re.IGNORECASE,
 )
@@ -310,13 +375,31 @@ def canonicalize_candidate(
         )
     )
 
-    if canonical is None:
-        return (
-            candidate,
-            normalized,
-        )
+    if canonical is not None:
+        return canonical
 
-    return canonical
+
+    hard_canonical = (
+        canonicalize_hard_skill(
+            candidate
+        )
+    )
+
+
+    if (
+        hard_canonical[1]
+        != normalized
+        or
+        hard_canonical[0]
+        != candidate
+    ):
+        return hard_canonical
+
+
+    return (
+        candidate,
+        normalized,
+    )
 
 
 def clean_candidate(
@@ -703,9 +786,19 @@ def split_candidates(
 
         else:
 
-            parts = [
+            if should_split_and(
                 text
-            ]
+            ):
+                parts = re.split(
+                    r"\s+\band\b\s+",
+                    text,
+                    flags=re.IGNORECASE,
+                )
+
+            else:
+                parts = [
+                    text
+                ]
 
 
     result = []
@@ -787,6 +880,14 @@ def extract_capture(
     if requirement_type == "skill":
 
         match = STRONG_SKILLS_PATTERN.search(
+            raw_text
+        )
+
+        if match:
+            return match.group(1)
+
+
+        match = NAMED_SKILL_CAPTURE_PATTERN.search(
             raw_text
         )
 
@@ -935,6 +1036,69 @@ def extract_atomic_concepts(
             continue
 
 
+        if requirement_type in {
+            "skill",
+            "tool",
+            "domain_knowledge",
+        }:
+
+            soft_matches = (
+                find_soft_skills(
+                    candidate
+                )
+            )
+
+
+            if soft_matches:
+
+                for soft_match in (
+                    soft_matches
+                ):
+
+                    soft_key = (
+                        "soft_skill",
+                        soft_match[
+                            "normalized_key"
+                        ],
+                    )
+
+
+                    if soft_key in seen:
+                        continue
+
+
+                    seen.add(
+                        soft_key
+                    )
+
+
+                    results.append(
+                        {
+                            **soft_match,
+
+                            "group_operator":
+                                group_operator,
+
+                            "group_is_open":
+                                False,
+                        }
+                    )
+
+
+                # A recognised soft-skill
+                # phrase should not also be
+                # stored as an opaque generic
+                # hard-skill phrase.
+                continue
+
+
+            candidate = (
+                reduce_action_phrase(
+                    candidate
+                )
+            )
+
+
         candidate, normalized = (
             canonicalize_candidate(
                 candidate
@@ -977,12 +1141,42 @@ def extract_atomic_concepts(
                 continue
 
 
-        if normalized in seen:
+        if requirement_type in {
+            "skill",
+            "tool",
+            "domain_knowledge",
+        }:
+            concept_type = (
+                "hard_skill"
+            )
+
+            confidence = (
+                0.98
+                if requirement_type
+                == "tool"
+                else 0.94
+            )
+
+        else:
+            concept_type = (
+                requirement_type
+            )
+
+            confidence = 0.96
+
+
+        seen_key = (
+            concept_type,
+            normalized,
+        )
+
+
+        if seen_key in seen:
             continue
 
 
         seen.add(
-            normalized
+            seen_key
         )
 
 
@@ -993,6 +1187,12 @@ def extract_atomic_concepts(
 
                 "normalized_key":
                     normalized,
+
+                "concept_type":
+                    concept_type,
+
+                "confidence":
+                    confidence,
 
                 "group_operator":
                     group_operator,

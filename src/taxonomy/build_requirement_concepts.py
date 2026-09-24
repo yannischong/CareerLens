@@ -201,9 +201,12 @@ def build_requirement_concepts(
                         ),
                         {
                             "concept_type":
-                                mention[
-                                    "requirement_type"
-                                ],
+                                candidate.get(
+                                    "concept_type",
+                                    mention[
+                                        "requirement_type"
+                                    ],
+                                ),
 
                             "canonical_name":
                                 candidate[
@@ -283,7 +286,7 @@ def build_requirement_concepts(
                             :concept_id,
                             :raw_concept_text,
                             'rule_based_atomic',
-                            NULL,
+                            :confidence,
                             :extractor_version,
                             :group_operator,
                             :group_is_open
@@ -303,6 +306,9 @@ def build_requirement_concepts(
                             extraction_method =
                                 EXCLUDED
                                 .extraction_method,
+
+                            confidence =
+                                EXCLUDED.confidence,
 
                             group_operator =
                                 EXCLUDED
@@ -326,6 +332,11 @@ def build_requirement_concepts(
                             candidate[
                                 "raw_text"
                             ],
+
+                        "confidence":
+                            candidate.get(
+                                "confidence"
+                            ),
 
                         "extractor_version":
                             CONCEPT_EXTRACTOR_VERSION,

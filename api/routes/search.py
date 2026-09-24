@@ -37,6 +37,9 @@ from src.extraction.extract_requirements import (
 from src.matching.assess_fit import (
     assess_profile_fit,
 )
+from src.user_profile.map_profile_concepts import (
+    map_profile_concepts,
+)
 from src.ranking.rank_search import (
     rank_search,
 )
@@ -157,6 +160,17 @@ def refresh_search_assessments(
     )
 
 
+    profile_concepts = (
+        map_profile_concepts(
+            profile_id=
+                profile_id,
+
+            database_url=
+                DATABASE_URL,
+        )
+    )
+
+
     fit_result = (
         assess_profile_fit(
             profile_id=
@@ -194,6 +208,9 @@ def refresh_search_assessments(
 
         "profile_facts":
             profile_facts,
+
+        "profile_concepts":
+            profile_concepts,
 
         "profile_fit":
             fit_result,

@@ -16,6 +16,9 @@ from api.profile import (
 from src.extraction.rules import (
     extract_requirements,
 )
+from src.taxonomy.atomic import (
+    extract_atomic_concepts,
+)
 from src.services.manual_job_fit_service import (
     assess_manual_job_fit,
 )
@@ -62,6 +65,14 @@ class ManualJobRequest(
 def serialize_requirement(
     mention,
 ):
+    concepts = (
+        extract_atomic_concepts(
+            mention.raw_text,
+            mention.requirement_type,
+        )
+    )
+
+
     return {
         "requirement_type":
             mention.requirement_type,
@@ -74,6 +85,32 @@ def serialize_requirement(
 
         "normalized_text":
             mention.normalized_text,
+
+        "structured_value":
+            mention.structured_value,
+
+        "concepts": [
+            {
+                "name":
+                    concept[
+                        "raw_text"
+                    ],
+
+                "type":
+                    concept.get(
+                        "concept_type",
+                        mention
+                        .requirement_type,
+                    ),
+
+                "confidence":
+                    concept.get(
+                        "confidence"
+                    ),
+            }
+
+            for concept in concepts
+        ],
     }
 
 

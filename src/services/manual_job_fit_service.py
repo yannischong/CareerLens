@@ -6,6 +6,9 @@ from src.collection.database import (
 from src.services.job_fit_service import (
     assess_job_fit,
 )
+from src.user_profile.map_profile_concepts import (
+    map_profile_concepts,
+)
 
 
 def assess_manual_job_fit(
@@ -57,6 +60,21 @@ def assess_manual_job_fit(
         raise ValueError(
             "Imported job not found."
         )
+
+
+    # New manual jobs can introduce
+    # concepts that did not exist when
+    # the resume was originally mapped.
+    # Rebuild the profile mapping first
+    # so the comparison uses the same
+    # active concept vocabulary.
+    map_profile_concepts(
+        profile_id=
+            profile_id,
+
+        database_url=
+            database_url,
+    )
 
 
     return assess_job_fit(

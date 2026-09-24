@@ -13,6 +13,10 @@ from src.collection.database import (
 from src.taxonomy.atomic import (
     normalize_concept,
 )
+from src.taxonomy.skill_classifier import (
+    find_soft_skills,
+    get_hard_skill_aliases,
+)
 
 
 MAPPER_VERSION = (
@@ -31,11 +35,11 @@ MODEL_NAME = (
 
 
 CLAIM_SIMILARITY_THRESHOLD = (
-    0.70
+    0.76
 )
 
 EVIDENCE_SIMILARITY_THRESHOLD = (
-    0.65
+    0.72
 )
 
 
@@ -46,6 +50,8 @@ SKILL_LIKE_TYPES = {
     "skill",
     "tool",
     "domain_knowledge",
+    "hard_skill",
+    "soft_skill",
 }
 
 
@@ -328,6 +334,13 @@ def expand_alias(
         )
 
 
+    variants.update(
+        get_hard_skill_aliases(
+            alias
+        )
+    )
+
+
     return variants
 
 
@@ -495,6 +508,17 @@ def direct_matches(
     matches = set()
 
 
+    detected_soft_keys = {
+        match[
+            "normalized_key"
+        ]
+
+        for match in find_soft_skills(
+            raw_text
+        )
+    }
+
+
     for concept in concepts:
 
         if (
@@ -511,6 +535,24 @@ def direct_matches(
                 "concept_id"
             ]
         )
+
+
+        if (
+            concept[
+                "concept_type"
+            ]
+            == "soft_skill"
+
+            and
+            concept[
+                "normalized_key"
+            ]
+            in detected_soft_keys
+        ):
+            matches.add(
+                concept_id
+            )
+            continue
 
 
         for alias in (

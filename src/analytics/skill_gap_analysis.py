@@ -33,6 +33,8 @@ DEVELOPMENT_CONCEPT_TYPES = {
     "skill",
     "tool",
     "domain_knowledge",
+    "hard_skill",
+    "soft_skill",
 }
 
 

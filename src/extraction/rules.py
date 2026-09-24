@@ -24,7 +24,12 @@ PREFERRED_PATTERN = re.compile(
     r"an advantage|"
     r"would be a plus|"
     r"is a plus|"
-    r"strong plus"
+    r"strong plus|"
+    r"desirable|"
+    r"ideally|"
+    r"bonus|"
+    r"beneficial|"
+    r"good to have"
     r")\b",
     re.IGNORECASE,
 )
@@ -37,7 +42,13 @@ REQUIRED_PATTERN = re.compile(
     r"mandatory|"
     r"minimum|"
     r"need to|"
-    r"needs to"
+    r"needs to|"
+    r"essential|"
+    r"prerequisite|"
+    r"must have|"
+    r"must-have|"
+    r"you will need|"
+    r"we require"
     r")\b",
     re.IGNORECASE,
 )
@@ -239,8 +250,19 @@ SKILL_PATTERN = re.compile(
     r"proficient in|"
     r"proficiency in|"
     r"experience with|"
+    r"experience in|"
+    r"expertise in|"
+    r"expertise with|"
     r"knowledge of|"
+    r"working knowledge of|"
     r"basic knowledge of|"
+    r"understanding of|"
+    r"strong command of|"
+    r"command of|"
+    r"competency in|"
+    r"competence in|"
+    r"track record in|"
+    r"background in|"
     r"familiar with|"
     r"familiarity with|"
     r"skills in|"
@@ -252,6 +274,24 @@ SKILL_PATTERN = re.compile(
     r"excellent .* capabilities|"
     r"ability to"
     r")\b",
+    re.IGNORECASE,
+)
+
+
+NAMED_SKILL_REQUIREMENT_PATTERN = re.compile(
+    r"\b"
+    r"([a-zA-Z][a-zA-Z &/\-]{1,60})"
+    r"\s+skills?\s+"
+    r"(?:are\s+|is\s+)?"
+    r"(?:required|essential|preferred|desirable|important|necessary)"
+    r"\b",
+    re.IGNORECASE,
+)
+
+
+REVERSE_SKILL_EXPERIENCE_PATTERN = re.compile(
+    r"^(?!\d+\s*(?:years?|yrs?)\b)"
+    r"(.{2,80}?)\s+experience\b",
     re.IGNORECASE,
 )
 
@@ -310,10 +350,19 @@ REQUIREMENT_START_CUE = (
     r"Proficient in|"
     r"Proficient with|"
     r"Experience with|"
+    r"Experience in|"
     r"Experience using|"
+    r"Expertise in|"
+    r"Expertise with|"
     r"Familiarity with|"
     r"Familiar with|"
     r"Knowledge of|"
+    r"Working knowledge of|"
+    r"Understanding of|"
+    r"Strong command of|"
+    r"Competency in|"
+    r"Track record in|"
+    r"Background in|"
     r"Basic knowledge of|"
     r"A desire and ability|"
     r"Enthusiasm and drive|"
@@ -864,6 +913,42 @@ def extract_requirements(
                     unit,
                     level,
                     "skill_requirement_cue",
+                )
+            )
+
+            matched = True
+
+
+        elif (
+            NAMED_SKILL_REQUIREMENT_PATTERN.search(
+                unit
+            )
+        ):
+
+            mentions.append(
+                create_mention(
+                    "skill",
+                    unit,
+                    level,
+                    "named_skill_requirement",
+                )
+            )
+
+            matched = True
+
+
+        elif (
+            REVERSE_SKILL_EXPERIENCE_PATTERN.search(
+                unit
+            )
+        ):
+
+            mentions.append(
+                create_mention(
+                    "skill",
+                    unit,
+                    level,
+                    "reverse_experience_skill_cue",
                 )
             )
 
