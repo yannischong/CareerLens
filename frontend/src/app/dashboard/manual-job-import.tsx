@@ -14,6 +14,26 @@ import {
 } from "./loading-spinner";
 
 
+const DEFAULT_API_URL =
+  "https://careercompass-api-2v4r.onrender.com";
+
+
+function getApiBaseUrl() {
+  const configured =
+    process.env
+      .NEXT_PUBLIC_API_URL
+      ?.trim();
+
+  return (
+    configured
+      || DEFAULT_API_URL
+  ).replace(
+    /\/+$/,
+    ""
+  );
+}
+
+
 type ManualJobConcept = {
   name: string;
   type: string;
@@ -542,13 +562,20 @@ export function ManualJobImport({
 
 
     const apiUrl =
-      process.env
-        .NEXT_PUBLIC_API_URL;
+      getApiBaseUrl();
+
+    const requestUrl =
+      `${apiUrl}${path}`;
+
+    console.info(
+      "[CareerLens manual API]",
+      requestUrl
+    );
 
 
     const response =
       await fetch(
-        `${apiUrl}${path}`,
+        requestUrl,
         {
           method:
             "POST",
