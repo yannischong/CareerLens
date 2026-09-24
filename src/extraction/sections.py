@@ -225,6 +225,35 @@ def classify_heading(text):
     return None
 
 
+
+CANDIDATE_HEADING_HINT_PATTERN = re.compile(
+    r"\b(?:"
+    r"requirements?|qualifications?|skills?|competenc(?:y|ies)|"
+    r"experience|background|candidate|profile|responsibilities|duties|"
+    r"what .*bring|what .*need|looking for|successful|success"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_candidate_heading(text):
+    heading = _normalize_heading(text)
+    if not heading:
+        return False
+
+    if len(heading) > 100 or len(heading.split()) > 14:
+        return False
+
+    if heading.endswith((".", "!", "?")):
+        return False
+
+    return bool(
+        CANDIDATE_HEADING_HINT_PATTERN.search(
+            heading
+        )
+    )
+
+
 def _default_section_type(source_field):
     if source_field in {
         "requirements_text",
@@ -296,6 +325,19 @@ def split_job_sections(text, source_field=None):
             flush()
             saw_heading = True
             current_type = line_type
+            current_heading = _normalize_heading(line)
+            continue
+
+        # A provider may use a candidate-oriented heading that is not yet in
+        # the exact heading vocabulary. Never let an earlier ignored section
+        # such as "About us" swallow the rest of the listing.
+        if (
+            current_type in IGNORED_SECTION_TYPES
+            and looks_like_candidate_heading(line)
+        ):
+            flush()
+            saw_heading = True
+            current_type = "other"
             current_heading = _normalize_heading(line)
             continue
 

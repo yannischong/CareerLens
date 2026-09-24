@@ -10,6 +10,11 @@ from src.extraction.sections import (
     split_job_sections,
 )
 
+from src.taxonomy.skill_classifier import (
+    find_hard_skills,
+    find_soft_skills,
+)
+
 
 WHITESPACE_PATTERN = re.compile(
     r"\s+"
@@ -608,9 +613,12 @@ def split_requirement_units(
         )
 
 
+        # Short bullets are common in real job listings:
+        # "SQL", "Excel", "Python", "Communication", etc.
+        # Do not discard them before the skill extractor sees them.
         if len(
             unit.split()
-        ) < 3:
+        ) < 1:
             continue
 
 
@@ -895,6 +903,27 @@ def _extract_unit_mentions(
         )
         matched = True
 
+    # Named tools and canonical soft skills may be presented as very short
+    # bullets with no cue phrase at all (e.g. "SQL", "Excel",
+    # "Stakeholder management"). Preserve those units as skill mentions.
+    if (
+        not matched
+        and (
+            find_hard_skills(unit)
+            or find_soft_skills(unit)
+        )
+    ):
+        mentions.append(
+            create_mention(
+                "skill",
+                unit,
+                level,
+                "direct_named_skill",
+                section=section,
+            )
+        )
+        matched = True
+
     # The reverse "X experience" rule is intentionally limited to candidate-
     # focused sections. In company/role prose, phrases such as "customer
     # experience" are usually not requirements and were a major source of
@@ -983,6 +1012,29 @@ def extract_requirements(
                 _extract_unit_mentions(
                     unit,
                     section,
+                )
+            )
+
+    # Section detection should improve precision, never turn a valid listing
+    # into an empty analysis. If no section produced any requirement at all,
+    # fall back to a neutral whole-listing pass using the same extraction
+    # rules. This keeps CareerLens functional for unusual provider formatting.
+    if not mentions:
+        from src.extraction.sections import JobSection
+
+        fallback_section = JobSection(
+            section_type="other",
+            heading=None,
+            text=text,
+        )
+
+        for unit in split_requirement_units(
+            text
+        ):
+            mentions.extend(
+                _extract_unit_mentions(
+                    unit,
+                    fallback_section,
                 )
             )
 
