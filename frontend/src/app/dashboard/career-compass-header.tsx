@@ -434,8 +434,11 @@ export function CareerCompassHeader({
           >
 
             <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur-sm transition hover:border-white/40 hover:bg-white/20 [&::-webkit-details-marker]:hidden">
-              <span className="underline decoration-blue-200 underline-offset-4">
+              <span className="underline decoration-blue-200 underline-offset-4 group-open:hidden">
                 Looking for more opportunities? Search your desired role here (CLICK HERE)
+              </span>
+              <span className="hidden underline decoration-blue-200 underline-offset-4 group-open:inline">
+                Close job search
               </span>
               <span
                 aria-hidden="true"

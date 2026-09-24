@@ -993,7 +993,7 @@ export function ManualJobImport({
             {
               preview
               && (
-                <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 
                   <div className="flex flex-wrap items-start justify-between gap-3">
 
@@ -1028,7 +1028,7 @@ export function ManualJobImport({
                         {
                           preview.location
                           && (
-                            <span className="rounded-full bg-white px-2.5 py-1">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1">
                               {
                                 preview.location
                               }
@@ -1040,7 +1040,7 @@ export function ManualJobImport({
                         {
                           preview.employment_type
                           && (
-                            <span className="rounded-full bg-white px-2.5 py-1">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1">
                               {
                                 preview.employment_type
                               }
@@ -1053,7 +1053,7 @@ export function ManualJobImport({
                     </div>
 
 
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#0A66C2]">
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#0A66C2]">
                       {
                         preview.requirement_count
                       }{" "}
@@ -1063,7 +1063,7 @@ export function ManualJobImport({
                   </div>
 
 
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                  <p className="mt-4 text-sm leading-6 text-slate-700">
                     {
                       preview.description
                         .slice(
