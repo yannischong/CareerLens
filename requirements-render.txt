@@ -1,0 +1,15 @@
+pandas
+numpy
+requests
+python-dotenv
+SQLAlchemy
+psycopg2-binary
+rapidfuzz
+scikit-learn
+sentence-transformers
+pypdf
+python-docx
+fastapi
+uvicorn
+python-multipart
+httpx
