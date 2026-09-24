@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -24,6 +25,9 @@ ELIGIBLE_SECTION_TYPES = {
     "role",
     "other",
 }
+
+logger = logging.getLogger(__name__)
+
 
 TRUE_VALUES = {
     "1",
@@ -513,6 +517,12 @@ def enrich_manual_requirement_mentions(
         return mentions
 
     if not model_skill_extraction_enabled():
+        message = (
+            "[CareerLens skill model] disabled or OPENAI_API_KEY unavailable; "
+            "using rule-based extraction."
+        )
+        logger.info(message)
+        print(message, flush=True)
         return mentions
 
     sections = _select_sections(
@@ -523,19 +533,33 @@ def enrich_manual_requirement_mentions(
     if not sections:
         return mentions
 
+    start_message = (
+        "[CareerLens skill model] starting "
+        f"{_model_name()} across {len(sections)} candidate-focused sections."
+    )
+    logger.info(start_message)
+    print(start_message, flush=True)
+
     try:
         model_skills = _call_openai(
             sections
         )
 
     except Exception as exc:
-        print(
-            "Model skill extraction failed; "
-            "using rule-based fallback: "
+        failure_message = (
+            "[CareerLens skill model] failed; using rule-based fallback: "
             f"{exc}"
         )
-
+        logger.exception(failure_message)
+        print(failure_message, flush=True)
         return mentions
+
+    success_message = (
+        "[CareerLens skill model] succeeded with "
+        f"{len(model_skills)} raw skill candidates."
+    )
+    logger.info(success_message)
+    print(success_message, flush=True)
 
     # The model has successfully reviewed the candidate-focused sections.
     # Mark existing skill-like mentions from those sections as processed even

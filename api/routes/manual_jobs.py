@@ -16,6 +16,9 @@ from api.profile import (
 from src.extraction.rules import (
     extract_requirements,
 )
+from src.extraction.model_skill_extractor import (
+    enrich_manual_requirement_mentions,
+)
 from src.taxonomy.atomic import (
     extract_atomic_concepts,
 )
@@ -69,6 +72,10 @@ def serialize_requirement(
         extract_atomic_concepts(
             mention.raw_text,
             mention.requirement_type,
+            structured_value=(
+                mention.structured_value
+                or {}
+            ),
         )
     )
 
@@ -247,22 +254,27 @@ def prepare_listing(
     )
 
 
-    requirements = (
-        [
+    if description:
+        mentions = extract_requirements(
+            description,
+            source_field="description",
+        )
+
+        mentions = enrich_manual_requirement_mentions(
+            description,
+            mentions,
+            source_field="description",
+        )
+
+        requirements = [
             serialize_requirement(
                 mention
             )
-
-            for mention
-            in extract_requirements(
-                description
-            )
+            for mention in mentions
         ]
 
-        if description
-
-        else []
-    )
+    else:
+        requirements = []
 
 
     result[
