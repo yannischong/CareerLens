@@ -339,7 +339,49 @@ def fetch_search_results(
                                         req.raw_text,
 
                                     'structured_value',
-                                        req.structured_value
+                                        req.structured_value,
+
+                                    'concepts',
+                                        COALESCE(
+                                            (
+                                                SELECT
+                                                    jsonb_agg(
+                                                        jsonb_build_object(
+                                                            'name',
+                                                                concept.canonical_name,
+
+                                                            'type',
+                                                                concept.concept_type,
+
+                                                            'confidence',
+                                                                link.confidence
+                                                        )
+
+                                                        ORDER BY
+                                                            concept.canonical_name
+                                                    )
+
+                                                FROM
+                                                    job_requirement_concepts link
+
+                                                JOIN
+                                                    requirement_concepts concept
+
+                                                    ON
+                                                        concept.concept_id =
+                                                        link.concept_id
+
+                                                WHERE
+                                                    link.requirement_mention_id =
+                                                    req.requirement_mention_id
+
+                                                    AND
+                                                    link.extractor_version =
+                                                    :concept_version
+                                            ),
+
+                                            '[]'::jsonb
+                                        )
                                 )
 
                                 ORDER BY

@@ -14,12 +14,21 @@ import {
 } from "./loading-spinner";
 
 
+type ManualJobConcept = {
+  name: string;
+  type: string;
+  confidence:
+    number | null;
+};
+
+
 type ManualJobRequirement = {
   requirement_type: string;
   requirement_level:
     string | null;
   text: string;
   normalized_text: string;
+  concepts?: ManualJobConcept[];
 };
 
 
@@ -248,6 +257,144 @@ function fitClassName(
 
   return (
     "border-amber-200 bg-amber-50 text-amber-800"
+  );
+}
+
+
+type DisplaySkillConcept = {
+  name: string;
+  type: string;
+  level: string;
+  confidence:
+    number | null;
+};
+
+
+function requirementLevelRank(
+  level: string
+) {
+  if (
+    level === "required"
+  ) {
+    return 3;
+  }
+
+
+  if (
+    level === "preferred"
+  ) {
+    return 2;
+  }
+
+
+  return 1;
+}
+
+
+function collectSkillConcepts(
+  requirements:
+    ManualJobRequirement[]
+) {
+  const byKey = new Map<
+    string,
+    DisplaySkillConcept
+  >();
+
+
+  requirements.forEach(
+    (requirement) => {
+      (
+        requirement.concepts
+        ?? []
+      ).forEach(
+        (concept) => {
+          if (
+            concept.type
+            !== "hard_skill"
+            && concept.type
+            !== "soft_skill"
+          ) {
+            return;
+          }
+
+
+          const level =
+            requirement.requirement_level
+            ?? "unknown";
+
+
+          const key = (
+            concept.type
+            + ":"
+            + concept.name
+              .trim()
+              .toLowerCase()
+          );
+
+
+          const existing =
+            byKey.get(
+              key
+            );
+
+
+          if (
+            !existing
+            || requirementLevelRank(
+              level
+            )
+            > requirementLevelRank(
+              existing.level
+            )
+          ) {
+            byKey.set(
+              key,
+              {
+                name: concept.name,
+                type: concept.type,
+                level,
+                confidence:
+                  concept.confidence,
+              }
+            );
+
+            return;
+          }
+
+
+          if (
+            existing
+            && concept.confidence
+              !== null
+            && (
+              existing.confidence
+              === null
+              || concept.confidence
+                > existing.confidence
+            )
+          ) {
+            byKey.set(
+              key,
+              {
+                ...existing,
+                confidence:
+                  concept.confidence,
+              }
+            );
+          }
+        }
+      );
+    }
+  );
+
+
+  return Array.from(
+    byKey.values()
+  ).sort(
+    (a, b) =>
+      a.name.localeCompare(
+        b.name
+      )
   );
 }
 
@@ -821,6 +968,46 @@ export function ManualJobImport({
       : null;
 
 
+  const extractedSkills =
+    preview
+      ? collectSkillConcepts(
+          preview.requirements
+        )
+      : [];
+
+
+  const hardSkills =
+    extractedSkills.filter(
+      (concept) =>
+        concept.type
+        === "hard_skill"
+    );
+
+
+  const softSkills =
+    extractedSkills.filter(
+      (concept) =>
+        concept.type
+        === "soft_skill"
+    );
+
+
+  const requiredSkills =
+    extractedSkills.filter(
+      (concept) =>
+        concept.level
+        === "required"
+    );
+
+
+  const preferredSkills =
+    extractedSkills.filter(
+      (concept) =>
+        concept.level
+        === "preferred"
+    );
+
+
   return (
     <div
       id="careercompass-manual-job-import"
@@ -1078,6 +1265,179 @@ export function ManualJobImport({
                         : ""
                     }
                   </p>
+
+
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          Extracted skills
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          CareerCompass separates concrete hard skills from transferable soft skills and preserves how strongly the listing asks for them.
+                        </p>
+                      </div>
+
+
+                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        {
+                          extractedSkills.length
+                        }{
+                          " skills"
+                        }
+                      </span>
+
+                    </div>
+
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+
+                      <div className="rounded-lg border border-blue-100 bg-white p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#0A66C2]">
+                          Hard skills
+                        </p>
+
+                        {
+                          hardSkills.length
+                          > 0
+                            ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {
+                                  hardSkills.map(
+                                    (concept) => (
+                                      <span
+                                        key={
+                                          "hard-"
+                                          + concept.name
+                                        }
+                                        className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800"
+                                      >
+                                        {
+                                          concept.name
+                                        }
+                                      </span>
+                                    )
+                                  )
+                                }
+                              </div>
+                            )
+                            : (
+                              <p className="mt-2 text-xs text-slate-500">
+                                No hard skills were confidently identified.
+                              </p>
+                            )
+                        }
+                      </div>
+
+
+                      <div className="rounded-lg border border-violet-100 bg-white p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                          Soft skills
+                        </p>
+
+                        {
+                          softSkills.length
+                          > 0
+                            ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {
+                                  softSkills.map(
+                                    (concept) => (
+                                      <span
+                                        key={
+                                          "soft-"
+                                          + concept.name
+                                        }
+                                        className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-800"
+                                      >
+                                        {
+                                          concept.name
+                                        }
+                                      </span>
+                                    )
+                                  )
+                                }
+                              </div>
+                            )
+                            : (
+                              <p className="mt-2 text-xs text-slate-500">
+                                No soft skills were confidently identified.
+                              </p>
+                            )
+                        }
+                      </div>
+
+                    </div>
+
+
+                    {
+                      (
+                        requiredSkills.length
+                        > 0
+                        || preferredSkills.length
+                        > 0
+                      )
+                      && (
+                        <div className="mt-4 border-t border-slate-200 pt-4">
+
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                            Requirement priority
+                          </p>
+
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+
+                            {
+                              requiredSkills.map(
+                                (concept) => (
+                                  <span
+                                    key={
+                                      "required-"
+                                      + concept.type
+                                      + "-"
+                                      + concept.name
+                                    }
+                                    className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800"
+                                  >
+                                    Required · {
+                                      concept.name
+                                    }
+                                  </span>
+                                )
+                              )
+                            }
+
+
+                            {
+                              preferredSkills.map(
+                                (concept) => (
+                                  <span
+                                    key={
+                                      "preferred-"
+                                      + concept.type
+                                      + "-"
+                                      + concept.name
+                                    }
+                                    className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
+                                  >
+                                    Preferred · {
+                                      concept.name
+                                    }
+                                  </span>
+                                )
+                              )
+                            }
+
+                          </div>
+
+                        </div>
+                      )
+                    }
+
+                  </div>
 
 
                   {

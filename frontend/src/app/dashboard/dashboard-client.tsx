@@ -50,6 +50,14 @@ type QualityFlag = {
 };
 
 
+type RequirementConcept = {
+  name: string;
+  type: string;
+  confidence:
+    number | null;
+};
+
+
 type Requirement = {
   id: number;
   type: string;
@@ -67,6 +75,9 @@ type Requirement = {
         unknown
       >
     | null;
+
+  concepts?:
+    RequirementConcept[];
 };
 
 
@@ -726,6 +737,322 @@ function formatText(
         character
           .toUpperCase()
     );
+}
+
+
+type DisplayRequirementSkill = {
+  name: string;
+  type: string;
+  level:
+    Requirement["level"];
+};
+
+
+function requirementLevelRank(
+  level:
+    Requirement["level"]
+) {
+  if (
+    level === "required"
+  ) {
+    return 3;
+  }
+
+
+  if (
+    level === "preferred"
+  ) {
+    return 2;
+  }
+
+
+  return 1;
+}
+
+
+function collectRequirementSkills(
+  requirements:
+    Requirement[]
+) {
+  const byKey = new Map<
+    string,
+    DisplayRequirementSkill
+  >();
+
+
+  requirements.forEach(
+    (requirement) => {
+      (
+        requirement.concepts
+        ?? []
+      ).forEach(
+        (concept) => {
+          if (
+            concept.type
+            !== "hard_skill"
+            && concept.type
+            !== "soft_skill"
+          ) {
+            return;
+          }
+
+
+          const key = (
+            concept.type
+            + ":"
+            + concept.name
+              .trim()
+              .toLowerCase()
+          );
+
+
+          const existing =
+            byKey.get(
+              key
+            );
+
+
+          if (
+            !existing
+            || requirementLevelRank(
+              requirement.level
+            )
+            > requirementLevelRank(
+              existing.level
+            )
+          ) {
+            byKey.set(
+              key,
+              {
+                name: concept.name,
+                type: concept.type,
+                level:
+                  requirement.level,
+              }
+            );
+          }
+        }
+      );
+    }
+  );
+
+
+  return Array.from(
+    byKey.values()
+  ).sort(
+    (a, b) =>
+      a.name.localeCompare(
+        b.name
+      )
+  );
+}
+
+
+function ExtractedSkillsPanel({
+  requirements,
+}: {
+  requirements:
+    Requirement[];
+}) {
+  const skills =
+    collectRequirementSkills(
+      requirements
+    );
+
+
+  const hardSkills =
+    skills.filter(
+      (skill) =>
+        skill.type
+        === "hard_skill"
+    );
+
+
+  const softSkills =
+    skills.filter(
+      (skill) =>
+        skill.type
+        === "soft_skill"
+    );
+
+
+  const requiredSkills =
+    skills.filter(
+      (skill) =>
+        skill.level
+        === "required"
+    );
+
+
+  const preferredSkills =
+    skills.filter(
+      (skill) =>
+        skill.level
+        === "preferred"
+    );
+
+
+  return (
+    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-slate-900">
+            Extracted skills
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Hard and soft skills identified from this listing before resume matching.
+          </p>
+        </div>
+
+
+        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+          {
+            skills.length
+          } skills
+        </span>
+      </div>
+
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-blue-100 bg-white p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-[#0A66C2]">
+            Hard skills
+          </p>
+
+          {
+            hardSkills.length
+            > 0
+              ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {
+                    hardSkills.map(
+                      (skill) => (
+                        <span
+                          key={
+                            "hard-"
+                            + skill.name
+                          }
+                          className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800"
+                        >
+                          {
+                            skill.name
+                          }
+                        </span>
+                      )
+                    )
+                  }
+                </div>
+              )
+              : (
+                <p className="mt-2 text-xs text-slate-500">
+                  No hard skills were confidently identified.
+                </p>
+              )
+          }
+        </div>
+
+
+        <div className="rounded-lg border border-violet-100 bg-white p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+            Soft skills
+          </p>
+
+          {
+            softSkills.length
+            > 0
+              ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {
+                    softSkills.map(
+                      (skill) => (
+                        <span
+                          key={
+                            "soft-"
+                            + skill.name
+                          }
+                          className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-800"
+                        >
+                          {
+                            skill.name
+                          }
+                        </span>
+                      )
+                    )
+                  }
+                </div>
+              )
+              : (
+                <p className="mt-2 text-xs text-slate-500">
+                  No soft skills were confidently identified.
+                </p>
+              )
+          }
+        </div>
+      </div>
+
+
+      {
+        (
+          requiredSkills.length
+          > 0
+          || preferredSkills.length
+          > 0
+        )
+        && (
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Requirement priority
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {
+                requiredSkills.map(
+                  (skill) => (
+                    <span
+                      key={
+                        "required-"
+                        + skill.type
+                        + "-"
+                        + skill.name
+                      }
+                      className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800"
+                    >
+                      Required · {
+                        skill.name
+                      }
+                    </span>
+                  )
+                )
+              }
+
+
+              {
+                preferredSkills.map(
+                  (skill) => (
+                    <span
+                      key={
+                        "preferred-"
+                        + skill.type
+                        + "-"
+                        + skill.name
+                      }
+                      className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
+                    >
+                      Preferred · {
+                        skill.name
+                      }
+                    </span>
+                  )
+                )
+              }
+            </div>
+          </div>
+        )
+      }
+    </div>
+  );
 }
 
 
@@ -1998,7 +2325,56 @@ function SkillGapPanel({
 
 
   if (!analysis) {
-    return null;
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-slate-900">
+          Career Insights
+        </h2>
+
+        <p className="mt-2 text-sm text-slate-600">
+          Career insights are generated from the roles returned by your latest job search.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            const searchPanel =
+              document.getElementById(
+                "careercompass-search"
+              ) as HTMLDetailsElement | null;
+
+            if (searchPanel) {
+              searchPanel.open =
+                true;
+            }
+
+            searchPanel
+              ?.scrollIntoView(
+                {
+                  behavior:
+                    "smooth",
+                  block:
+                    "center",
+                }
+              );
+
+            window.setTimeout(
+              () => {
+                document
+                  .getElementById(
+                    "careercompass-role-search"
+                  )
+                  ?.focus();
+              },
+              450
+            );
+          }}
+          className="mt-4 text-left text-sm font-semibold text-[#0A66C2] underline decoration-blue-300 underline-offset-4 transition hover:text-[#004182]"
+        >
+          Search a desired role to view Career Insights.
+        </button>
+      </section>
+    );
   }
 
 
@@ -8129,6 +8505,21 @@ export default function DashboardClient({
 
                           </div>
 
+                        )
+                      }
+
+
+                      {
+                        job
+                          .requirements
+                          .length
+                        > 0
+                        && (
+                          <ExtractedSkillsPanel
+                            requirements={
+                              job.requirements
+                            }
+                          />
                         )
                       }
 
