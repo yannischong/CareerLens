@@ -86,4 +86,7 @@ def assess_manual_job_fit(
 
         database_url=
             database_url,
+
+        use_model_resume_matching=
+            True,
     )
