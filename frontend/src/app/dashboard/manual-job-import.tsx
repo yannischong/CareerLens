@@ -461,7 +461,7 @@ export function ManualJobImport({
     showDescriptionFallback,
     setShowDescriptionFallback,
   ] = useState(
-    true
+    false
   );
 
 
@@ -574,7 +574,7 @@ export function ManualJobImport({
       );
 
       setShowDescriptionFallback(
-        true
+        false
       );
 
       setError(
