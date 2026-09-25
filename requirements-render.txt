@@ -13,3 +13,4 @@ fastapi
 uvicorn
 python-multipart
 httpx
+psycopg[binary]>=3.2,<4
