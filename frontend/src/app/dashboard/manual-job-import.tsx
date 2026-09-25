@@ -461,7 +461,7 @@ export function ManualJobImport({
     showDescriptionFallback,
     setShowDescriptionFallback,
   ] = useState(
-    false
+    true
   );
 
 
@@ -574,7 +574,7 @@ export function ManualJobImport({
       );
 
       setShowDescriptionFallback(
-        false
+        true
       );
 
       setError(
@@ -1300,12 +1300,15 @@ export function ManualJobImport({
                       !current
                   )
                 }
-                className="text-xs font-semibold text-blue-100 underline underline-offset-4 hover:text-white"
+                className="text-xs font-semibold text-blue-100 underline-offset-4 hover:text-white hover:underline"
               >
                 {
                   showDescriptionFallback
-                    ? "Hide pasted job description"
-                    : "Click here to paste job description..."
+                    ? "Hide pasted description"
+                    : (
+                      "Paste full job description "
+                      + "for maximum accuracy"
+                    )
                 }
               </button>
 
