@@ -47,9 +47,6 @@ from src.ranking.rank_search import (
 from src.services.job_search_service import (
     run_job_search,
 )
-from src.services.job_posting_enrichment_service import (
-    enrich_provider_job_description,
-)
 from src.services.search_quota_service import (
     get_search_quota,
     reserve_search_slot,
@@ -2850,12 +2847,40 @@ def analyze_provider_job(
         )
     )
 
-    enrichment = (
-        enrich_provider_job_description(
-            dict(job),
-            provider_text,
+    # Import the page/ATS enrichment layer lazily so a problem in an
+    # external-page integration can never prevent the FastAPI service from
+    # binding its Render port during process startup.
+    try:
+        from src.services.job_posting_enrichment_service import (
+            enrich_provider_job_description,
         )
-    )
+
+        enrichment = (
+            enrich_provider_job_description(
+                dict(job),
+                provider_text,
+            )
+        )
+    except Exception as exc:
+        print(
+            "[CareerLens provider enrichment] "
+            f"falling back to provider text: {exc}",
+            flush=True,
+        )
+
+        enrichment = {
+            "analysis_text": provider_text,
+            "description_source": "provider",
+            "description_completeness": (
+                "partial"
+                if len(provider_text) < 700
+                else "likely_full"
+            ),
+            "provider_characters": len(provider_text),
+            "analysis_characters": len(provider_text),
+            "full_posting_retrieved": False,
+            "fetch_attempted": False,
+        }
 
     analysis_text = (
         enrichment.get(
