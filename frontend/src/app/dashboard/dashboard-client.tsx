@@ -424,6 +424,15 @@ type Job = {
 
   eligibility:
     Eligibility | null;
+
+  resume_match_percentage:
+    number | null;
+
+  ai_analysis_cached:
+    boolean;
+
+  analysis_method:
+    string | null;
 };
 
 
@@ -450,6 +459,14 @@ type ProviderJobAnalysisResponse = {
 
   profile_fit:
     ProfileFit | null;
+
+  resume_match_percentage:
+    number | null;
+
+  cache_hit:
+    "none"
+    | "job"
+    | "profile";
 };
 
 
@@ -3526,6 +3543,36 @@ export default function DashboardClient({
     }
 
 
+    const currentJob =
+      jobs.find(
+        (job) =>
+          job.job_id
+          === jobId
+      );
+
+
+    if (
+      currentJob
+        ?.ai_analysis_cached
+    ) {
+      setProviderAnalysisStates(
+        (current) => ({
+          ...current,
+
+          [jobId]: {
+            status:
+              "ready",
+
+            message:
+              "Loaded saved AI analysis for this role. No new model call was needed.",
+          },
+        })
+      );
+
+      return;
+    }
+
+
     setProviderAnalysisStates(
       (current) => ({
         ...current,
@@ -3642,6 +3689,19 @@ export default function DashboardClient({
                 profile_fit:
                   data.profile_fit
                   ?? job.profile_fit,
+
+                resume_match_percentage:
+                  data
+                    .resume_match_percentage
+                  ?? job
+                    .resume_match_percentage,
+
+                ai_analysis_cached:
+                  true,
+
+                analysis_method:
+                  data
+                    .analysis_method,
               };
             }
           )
@@ -3657,7 +3717,17 @@ export default function DashboardClient({
               "ready",
 
             message:
-              data.profile_fit
+              data.cache_hit
+              === "profile"
+                ? "Loaded saved AI analysis for this role. No new model call was needed."
+                : data.cache_hit
+                  === "job"
+                ? (
+                    data.profile_fit
+                      ? "Reused the saved job-skill analysis and refreshed the comparison for your current resume."
+                      : "Loaded saved job-skill analysis for this role."
+                  )
+                : data.profile_fit
                 ? "AI-refined skill extraction and resume evidence are loaded for this role."
                 : data.analysis_method
                   .startsWith(
@@ -5674,6 +5744,64 @@ export default function DashboardClient({
 
 
         return true;
+      }
+    ).sort(
+      (
+        left,
+        right
+      ) => {
+        // Search relevance remains the primary ordering signal.
+        // Resume match is informational only: CareerLens is designed
+        // to help users tailor their resume to relevant roles rather
+        // than hide relevant roles because of current resume gaps.
+        const leftSearch =
+          left.search_relevance;
+
+        const rightSearch =
+          right.search_relevance;
+
+
+        if (
+          leftSearch !== null
+          || rightSearch !== null
+        ) {
+          if (
+            leftSearch === null
+          ) {
+            return 1;
+          }
+
+          if (
+            rightSearch === null
+          ) {
+            return -1;
+          }
+
+          if (
+            rightSearch
+            !== leftSearch
+          ) {
+            return (
+              rightSearch
+              - leftSearch
+            );
+          }
+        }
+
+
+        // Preserve the provider's original order when search
+        // relevance ties or is unavailable.
+        return (
+          (
+            left.provider_rank
+            ?? Number.MAX_SAFE_INTEGER
+          )
+          -
+          (
+            right.provider_rank
+            ?? Number.MAX_SAFE_INTEGER
+          )
+        );
       }
     );
 
@@ -8407,6 +8535,34 @@ export default function DashboardClient({
                                 .raw_company_name
                             }
                           </p>
+
+
+                          {
+                            job
+                              .resume_match_percentage
+                            !== null
+                            && (
+
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                  Resume match {
+                                    Math.round(
+                                      job
+                                        .resume_match_percentage
+                                    )
+                                  }%
+                                </span>
+
+
+                                <span className="text-xs text-slate-500">
+                                  Weighted requirement coverage, not a hiring probability
+                                </span>
+
+                              </div>
+
+                            )
+                          }
 
 
                           {

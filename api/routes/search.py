@@ -1,3 +1,4 @@
+import hashlib
 import os
 
 from dotenv import load_dotenv
@@ -49,6 +50,13 @@ from src.services.job_search_service import (
 from src.services.search_quota_service import (
     get_search_quota,
     reserve_search_slot,
+)
+from src.services.provider_analysis_cache_service import (
+    get_cached_job_analysis,
+    get_cached_profile_analysis,
+    get_cached_profile_analyses_for_search,
+    store_job_analysis,
+    store_profile_analysis,
 )
 from src.taxonomy.build_requirement_concepts import (
     build_requirement_concepts,
@@ -220,6 +228,234 @@ def refresh_search_assessments(
     }
 
 
+def _provider_match_percentage(
+    profile_fit,
+):
+    if (
+        not isinstance(
+            profile_fit,
+            dict,
+        )
+        or profile_fit.get(
+            "status"
+        )
+        != "assessed"
+    ):
+        return None
+
+    groups = (
+        profile_fit.get(
+            "groups"
+        )
+        or []
+    )
+
+    level_weights = {
+        "required": 2.0,
+        "preferred": 1.0,
+        "unknown": 1.0,
+    }
+
+    status_credits = {
+        "evidenced": 1.0,
+        "claimed_only": 0.8,
+        "candidate": 0.5,
+        "needs_review": 0.25,
+        "gap": 0.0,
+    }
+
+    if groups:
+        total_weight = 0.0
+        earned_weight = 0.0
+
+        for group in groups:
+            weight = level_weights.get(
+                group.get(
+                    "level"
+                ),
+                1.0,
+            )
+
+            credit = status_credits.get(
+                group.get(
+                    "status"
+                ),
+                0.0,
+            )
+
+            total_weight += weight
+            earned_weight += (
+                weight
+                * credit
+            )
+
+        if total_weight > 0:
+            return round(
+                100.0
+                * earned_weight
+                / total_weight,
+                1,
+            )
+
+    total_groups = int(
+        profile_fit.get(
+            "total_groups",
+            0,
+        )
+        or 0
+    )
+
+    if total_groups <= 0:
+        return None
+
+    earned = (
+        float(
+            profile_fit.get(
+                "group_evidenced",
+                0,
+            )
+            or 0
+        )
+        + 0.8
+        * float(
+            profile_fit.get(
+                "group_claimed_only",
+                0,
+            )
+            or 0
+        )
+        + 0.5
+        * float(
+            profile_fit.get(
+                "group_candidate",
+                0,
+            )
+            or 0
+        )
+        + 0.25
+        * float(
+            profile_fit.get(
+                "needs_review",
+                0,
+            )
+            or 0
+        )
+    )
+
+    return round(
+        100.0
+        * earned
+        / total_groups,
+        1,
+    )
+
+
+def _provider_job_content_hash(
+    job,
+):
+    analysis_text = (
+        _provider_analysis_text(
+            job
+        )
+    )
+
+    return hashlib.sha256(
+        analysis_text.encode(
+            "utf-8"
+        )
+    ).hexdigest()
+
+
+def _latest_resume_id(
+    connection,
+    profile_id,
+):
+    return (
+        connection.execute(
+            text(
+                """
+                    SELECT
+                        resume_id
+
+                    FROM
+                        resume_documents
+
+                    WHERE
+                        profile_id =
+                            :profile_id
+
+                    ORDER BY
+                        resume_id DESC
+
+                    LIMIT 1;
+                """
+            ),
+            {
+                "profile_id":
+                    profile_id,
+            },
+        )
+        .scalar_one_or_none()
+    )
+
+
+def _provider_result_sort_key(
+    job,
+):
+    match_percentage = (
+        job.get(
+            "resume_match_percentage"
+        )
+    )
+
+    search_relevance = (
+        job.get(
+            "search_relevance"
+        )
+    )
+
+    provider_rank = (
+        job.get(
+            "provider_rank"
+        )
+    )
+
+    return (
+        1
+        if job.get(
+            "insufficient_description"
+        )
+        else 0,
+
+        1
+        if match_percentage is None
+        else 0,
+
+        -float(
+            match_percentage
+            or 0
+        ),
+
+        -float(
+            search_relevance
+            or 0
+        ),
+
+        int(
+            provider_rank
+            if provider_rank
+            is not None
+            else 1_000_000
+        ),
+
+        int(
+            job[
+                "job_id"
+            ]
+        ),
+    )
+
+
 def fetch_search_results(
     connection,
     search_request_id,
@@ -259,6 +495,9 @@ def fetch_search_results(
                 j.employment_type,
                 j.salary_text,
                 j.description,
+                j.requirements_text,
+                j.education_requirements,
+                j.experience_requirements,
                 j.job_url,
                 j.source,
                 j.date_posted,
@@ -1200,10 +1439,143 @@ def fetch_search_results(
     ).mappings().all()
 
 
-    return [
+    jobs = [
         dict(row)
         for row in rows
     ]
+
+    resume_id = (
+        _latest_resume_id(
+            connection,
+            profile_id,
+        )
+    )
+
+    cached_analyses = (
+        get_cached_profile_analyses_for_search(
+            connection,
+            profile_id=
+                profile_id,
+            resume_id=
+                resume_id,
+            search_request_id=
+                search_request_id,
+        )
+    )
+
+    for job in jobs:
+        job_hash = (
+            _provider_job_content_hash(
+                job
+            )
+        )
+
+        cached = (
+            cached_analyses.get(
+                (
+                    int(
+                        job[
+                            "job_id"
+                        ]
+                    ),
+                    job_hash,
+                )
+            )
+        )
+
+        job[
+            "ai_analysis_cached"
+        ] = False
+
+        job[
+            "analysis_method"
+        ] = None
+
+        if cached:
+            payload = (
+                cached.get(
+                    "analysis_payload"
+                )
+                or {}
+            )
+
+            cached_requirements = (
+                payload.get(
+                    "requirements"
+                )
+                or []
+            )
+
+            cached_profile_fit = (
+                payload.get(
+                    "profile_fit"
+                )
+            )
+
+            if cached_requirements:
+                job[
+                    "requirements"
+                ] = cached_requirements
+
+            if cached_profile_fit:
+                job[
+                    "profile_fit"
+                ] = cached_profile_fit
+
+            cached_percentage = (
+                cached.get(
+                    "resume_match_percentage"
+                )
+            )
+
+            job[
+                "resume_match_percentage"
+            ] = (
+                float(
+                    cached_percentage
+                )
+                if cached_percentage
+                is not None
+                else None
+            )
+
+            job[
+                "ai_analysis_cached"
+            ] = True
+
+            job[
+                "analysis_method"
+            ] = payload.get(
+                "analysis_method"
+            )
+
+        else:
+            job[
+                "resume_match_percentage"
+            ] = (
+                _provider_match_percentage(
+                    job.get(
+                        "profile_fit"
+                    )
+                )
+            )
+
+        for internal_field in (
+            "requirements_text",
+            "education_requirements",
+            "experience_requirements",
+        ):
+            job.pop(
+                internal_field,
+                None,
+            )
+
+    jobs.sort(
+        key=
+            _provider_result_sort_key
+    )
+
+    return jobs
 
 
 @router.get("/quota")
@@ -2080,6 +2452,272 @@ def _build_provider_profile_fit(
     }
 
 
+def _extract_provider_job_analysis(
+    job_id,
+    analysis_text,
+):
+    # Lazy imports keep model code outside FastAPI startup.
+    from src.extraction.model_skill_extractor import (
+        enrich_manual_requirement_mentions,
+    )
+    from src.extraction.rules import (
+        extract_requirements,
+    )
+    from src.taxonomy.atomic import (
+        extract_atomic_concepts,
+    )
+
+    mentions = extract_requirements(
+        analysis_text,
+        source_field="description",
+    )
+
+    mentions = (
+        enrich_manual_requirement_mentions(
+            analysis_text,
+            mentions,
+            source_field="description",
+        )
+    )
+
+    model_skill_used = any(
+        bool(
+            (
+                mention.structured_value
+                or {}
+            ).get(
+                "model_skill_processed"
+            )
+        )
+        for mention in mentions
+    )
+
+    requirements = []
+    skill_by_key = {}
+
+    for index, mention in enumerate(
+        mentions,
+        start=1,
+    ):
+        candidates = (
+            extract_atomic_concepts(
+                mention.raw_text,
+                mention.requirement_type,
+                structured_value=(
+                    mention.structured_value
+                ),
+            )
+        )
+
+        candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.get(
+                "concept_type"
+            )
+            in {
+                "hard_skill",
+                "soft_skill",
+            }
+        ]
+
+        if not candidates:
+            continue
+
+        requirement_concepts = []
+
+        for candidate in candidates:
+            normalized_key = (
+                candidate.get(
+                    "normalized_key"
+                )
+                or ""
+            )
+
+            concept_type = (
+                candidate.get(
+                    "concept_type"
+                )
+            )
+
+            canonical_name = (
+                candidate.get(
+                    "raw_text"
+                )
+                or normalized_key
+            )
+
+            try:
+                confidence = float(
+                    candidate.get(
+                        "confidence",
+                        0.0,
+                    )
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                confidence = 0.0
+
+            if not normalized_key:
+                continue
+
+            key = (
+                concept_type,
+                normalized_key,
+            )
+
+            existing = (
+                skill_by_key.get(
+                    key
+                )
+            )
+
+            skill = {
+                "name":
+                    canonical_name,
+
+                "type":
+                    concept_type,
+
+                "level":
+                    mention.requirement_level,
+
+                "confidence":
+                    confidence,
+
+                "source_text":
+                    mention.raw_text,
+
+                "section_type":
+                    (
+                        mention.structured_value
+                        or {}
+                    ).get(
+                        "section_type",
+                        "other",
+                    ),
+            }
+
+            if (
+                existing is None
+                or _provider_level_rank(
+                    skill[
+                        "level"
+                    ]
+                )
+                > _provider_level_rank(
+                    existing[
+                        "level"
+                    ]
+                )
+                or (
+                    _provider_level_rank(
+                        skill[
+                            "level"
+                        ]
+                    )
+                    == _provider_level_rank(
+                        existing[
+                            "level"
+                        ]
+                    )
+                    and skill[
+                        "confidence"
+                    ]
+                    > existing[
+                        "confidence"
+                    ]
+                )
+            ):
+                skill_by_key[
+                    key
+                ] = skill
+
+            requirement_concepts.append(
+                {
+                    "name":
+                        canonical_name,
+
+                    "type":
+                        concept_type,
+
+                    "confidence":
+                        confidence,
+                }
+            )
+
+        if not requirement_concepts:
+            continue
+
+        requirements.append(
+            {
+                "id":
+                    (
+                        int(job_id)
+                        * 100000
+                        + index
+                    ),
+
+                "type":
+                    mention.requirement_type,
+
+                "level":
+                    mention.requirement_level,
+
+                "text":
+                    mention.raw_text,
+
+                "structured_value":
+                    mention.structured_value,
+
+                "concepts":
+                    requirement_concepts,
+            }
+        )
+
+    skills = list(
+        skill_by_key.values()
+    )
+
+    skills.sort(
+        key=lambda item: (
+            -_provider_level_rank(
+                item[
+                    "level"
+                ]
+            ),
+            item[
+                "type"
+            ],
+            item[
+                "name"
+            ].casefold(),
+        )
+    )
+
+    for concept_id, skill in enumerate(
+        skills,
+        start=1,
+    ):
+        skill[
+            "concept_id"
+        ] = concept_id
+
+    analysis_method = (
+        "model_assisted_on_demand_v2"
+        if model_skill_used
+        else "rule_fallback_on_demand_v2"
+    )
+
+    return (
+        analysis_method,
+        requirements,
+        skills,
+    )
+
+
 @router.post(
     "/jobs/{job_id}/analyze"
 )
@@ -2090,12 +2728,12 @@ def analyze_provider_job(
         get_current_profile
     ),
 ):
-    """Run model-assisted extraction only when a user opens a result.
+    """Analyze one provider job on demand and reuse persistent cached results.
 
-    Search discovery stays cheap. This endpoint performs the heavier model
-    extraction and resume verification for one provider-search job at a time.
-    Nothing is persisted, so the existing deterministic search pipeline remains
-    the fallback and the result can safely live only in the frontend session.
+    The job-skill extraction cache is shared across users for the same job
+    content. Resume matching is cached per profile + resume, so replacing a
+    resume invalidates only the resume-fit layer while preserving job
+    extraction.
     """
 
     with engine.connect() as connection:
@@ -2158,11 +2796,12 @@ def analyze_provider_job(
             .one_or_none()
         )
 
-        resume_text = (
+        resume = (
             connection.execute(
                 text(
                     """
                     SELECT
+                        resume_id,
                         raw_text
 
                     FROM
@@ -2183,7 +2822,8 @@ def analyze_provider_job(
                         profile.profile_id,
                 },
             )
-            .scalar_one_or_none()
+            .mappings()
+            .one_or_none()
         )
 
     if job is None:
@@ -2211,259 +2851,168 @@ def analyze_provider_job(
 
             "profile_fit":
                 None,
+
+            "resume_match_percentage":
+                None,
+
+            "cache_hit":
+                "none",
         }
 
-    try:
-        # Lazy imports keep the model path completely outside FastAPI startup.
-        from src.extraction.model_skill_extractor import (
-            enrich_manual_requirement_mentions,
+    job_hash = (
+        _provider_job_content_hash(
+            job
         )
-        from src.extraction.rules import (
-            extract_requirements,
-        )
-        from src.taxonomy.atomic import (
-            extract_atomic_concepts,
-        )
+    )
 
-        mentions = extract_requirements(
-            analysis_text,
-            source_field="description",
-        )
+    resume_id = (
+        resume[
+            "resume_id"
+        ]
+        if resume is not None
+        else None
+    )
 
-        mentions = (
-            enrich_manual_requirement_mentions(
-                analysis_text,
-                mentions,
-                source_field="description",
-            )
-        )
+    resume_text = (
+        resume[
+            "raw_text"
+        ]
+        if resume is not None
+        else None
+    )
 
-        model_skill_used = any(
-            bool(
-                (
-                    mention.structured_value
-                    or {}
-                ).get(
-                    "model_skill_processed"
-                )
-            )
-            for mention in mentions
-        )
-
-        requirements = []
-        skill_by_key = {}
-
-        for index, mention in enumerate(
-            mentions,
-            start=1,
-        ):
-            candidates = (
-                extract_atomic_concepts(
-                    mention.raw_text,
-                    mention.requirement_type,
-                    structured_value=(
-                        mention.structured_value
-                    ),
+    # Fastest path: the exact job + exact latest resume were already analyzed.
+    if resume_id is not None:
+        with engine.connect() as connection:
+            cached_profile = (
+                get_cached_profile_analysis(
+                    connection,
+                    profile_id=
+                        profile.profile_id,
+                    job_id=
+                        job_id,
+                    resume_id=
+                        resume_id,
+                    job_content_hash=
+                        job_hash,
                 )
             )
 
-            candidates = [
-                candidate
-                for candidate in candidates
-                if candidate.get(
-                    "concept_type"
+        if cached_profile is not None:
+            payload = dict(
+                cached_profile.get(
+                    "analysis_payload"
                 )
-                in {
-                    "hard_skill",
-                    "soft_skill",
-                }
+                or {}
+            )
+
+            payload[
+                "cache_hit"
+            ] = "profile"
+
+            cached_percentage = (
+                cached_profile.get(
+                    "resume_match_percentage"
+                )
+            )
+
+            payload[
+                "resume_match_percentage"
+            ] = (
+                float(
+                    cached_percentage
+                )
+                if cached_percentage
+                is not None
+                else None
+            )
+
+            return payload
+
+    with engine.connect() as connection:
+        cached_job = (
+            get_cached_job_analysis(
+                connection,
+                job_id=
+                    job_id,
+                job_content_hash=
+                    job_hash,
+            )
+        )
+
+    if cached_job is not None:
+        analysis_method = (
+            cached_job[
+                "analysis_method"
             ]
+        )
 
-            if not candidates:
-                continue
-
-            requirement_concepts = []
-
-            for candidate in candidates:
-                normalized_key = (
-                    candidate.get(
-                        "normalized_key"
-                    )
-                    or ""
-                )
-
-                concept_type = (
-                    candidate.get(
-                        "concept_type"
-                    )
-                )
-
-                canonical_name = (
-                    candidate.get(
-                        "raw_text"
-                    )
-                    or normalized_key
-                )
-
-                try:
-                    confidence = float(
-                        candidate.get(
-                            "confidence",
-                            0.0,
-                        )
-                    )
-                except (
-                    TypeError,
-                    ValueError,
-                ):
-                    confidence = 0.0
-
-                if not normalized_key:
-                    continue
-
-                key = (
-                    concept_type,
-                    normalized_key,
-                )
-
-                existing = skill_by_key.get(
-                    key
-                )
-
-                skill = {
-                    "name":
-                        canonical_name,
-
-                    "type":
-                        concept_type,
-
-                    "level":
-                        mention.requirement_level,
-
-                    "confidence":
-                        confidence,
-
-                    "source_text":
-                        mention.raw_text,
-
-                    "section_type":
-                        (
-                            mention.structured_value
-                            or {}
-                        ).get(
-                            "section_type",
-                            "other",
-                        ),
-                }
-
-                if (
-                    existing is None
-                    or _provider_level_rank(
-                        skill[
-                            "level"
-                        ]
-                    )
-                    > _provider_level_rank(
-                        existing[
-                            "level"
-                        ]
-                    )
-                    or (
-                        _provider_level_rank(
-                            skill[
-                                "level"
-                            ]
-                        )
-                        == _provider_level_rank(
-                            existing[
-                                "level"
-                            ]
-                        )
-                        and skill[
-                            "confidence"
-                        ]
-                        > existing[
-                            "confidence"
-                        ]
-                    )
-                ):
-                    skill_by_key[
-                        key
-                    ] = skill
-
-                requirement_concepts.append(
-                    {
-                        "name":
-                            canonical_name,
-
-                        "type":
-                            concept_type,
-
-                        "confidence":
-                            confidence,
-                    }
-                )
-
-            if not requirement_concepts:
-                continue
-
-            requirements.append(
-                {
-                    "id":
-                        (
-                            int(job_id)
-                            * 100000
-                            + index
-                        ),
-
-                    "type":
-                        mention.requirement_type,
-
-                    "level":
-                        mention.requirement_level,
-
-                    "text":
-                        mention.raw_text,
-
-                    "structured_value":
-                        mention.structured_value,
-
-                    "concepts":
-                        requirement_concepts,
-                }
+        requirements = list(
+            cached_job.get(
+                "requirements"
             )
+            or []
+        )
 
         skills = list(
-            skill_by_key.values()
-        )
-
-        skills.sort(
-            key=lambda item: (
-                -_provider_level_rank(
-                    item[
-                        "level"
-                    ]
-                ),
-                item[
-                    "type"
-                ],
-                item[
-                    "name"
-                ].casefold(),
+            cached_job.get(
+                "skills"
             )
+            or []
         )
 
-        for concept_id, skill in enumerate(
-            skills,
-            start=1,
+        job_cache_hit = True
+
+    else:
+        try:
+            (
+                analysis_method,
+                requirements,
+                skills,
+            ) = _extract_provider_job_analysis(
+                job_id,
+                analysis_text,
+            )
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "On-demand job analysis failed: "
+                    + str(exc)[:300]
+                ),
+            ) from exc
+
+        job_cache_hit = False
+
+        # Only persist successful model-assisted extraction. A temporary model
+        # outage may fall back to deterministic rules; caching that fallback
+        # would prevent a later request from retrying the model.
+        if analysis_method.startswith(
+            "model_assisted"
         ):
-            skill[
-                "concept_id"
-            ] = concept_id
+            try:
+                with engine.begin() as connection:
+                    store_job_analysis(
+                        connection,
+                        job_id=
+                            job_id,
+                        job_content_hash=
+                            job_hash,
+                        analysis_method=
+                            analysis_method,
+                        requirements=
+                            requirements,
+                        skills=
+                            skills,
+                    )
+            except Exception:
+                pass
 
-        model_results = {}
+    model_results = {}
 
-        if resume_text and skills:
+    if resume_text and skills:
+        try:
             from src.user_profile.model_resume_matcher import (
                 verify_resume_skills,
             )
@@ -2501,42 +3050,74 @@ def analyze_provider_job(
                 )
             )
 
-        profile_fit = (
-            _build_provider_profile_fit(
-                job_id,
-                skills,
-                model_results,
-            )
-            if resume_text
-            else None
+        except Exception:
+            model_results = {}
+
+    profile_fit = (
+        _build_provider_profile_fit(
+            job_id,
+            skills,
+            model_results,
         )
+        if resume_text
+        else None
+    )
 
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "On-demand job analysis failed: "
-                + str(exc)[:300]
-            ),
-        ) from exc
+    resume_match_percentage = (
+        _provider_match_percentage(
+            profile_fit
+        )
+    )
 
-    return {
+    response_payload = {
         "job_id":
             job_id,
 
         "analysis_method":
-            (
-                "model_assisted_on_demand_v1"
-                if model_skill_used
-                else "rule_fallback_on_demand_v1"
-            ),
+            analysis_method,
 
         "requirements":
             requirements,
 
         "profile_fit":
             profile_fit,
+
+        "resume_match_percentage":
+            resume_match_percentage,
+
+        "cache_hit":
+            (
+                "job"
+                if job_cache_hit
+                else "none"
+            ),
     }
+
+    if (
+        resume_id is not None
+        and profile_fit is not None
+    ):
+        try:
+            with engine.begin() as connection:
+                store_profile_analysis(
+                    connection,
+                    profile_id=
+                        profile.profile_id,
+                    job_id=
+                        job_id,
+                    resume_id=
+                        resume_id,
+                    job_content_hash=
+                        job_hash,
+                    analysis_payload=
+                        response_payload,
+                    resume_match_percentage=
+                        resume_match_percentage,
+                )
+        except Exception:
+            pass
+
+    return response_payload
 
 
 @router.get(
