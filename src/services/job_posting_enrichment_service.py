@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 
 
-FETCH_TIMEOUT_SECONDS = 10.0
+FETCH_TIMEOUT_SECONDS = 8.0
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_REDIRECTS = 5
 
@@ -477,11 +477,13 @@ def _fetch_json(url, *, method="GET", payload=None):
 
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; CareerLens/1.0; "
-            "+https://github.com/yannischong/CareerLens)"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
         ),
         "Accept": "application/json,text/plain,*/*",
         "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/",
     }
 
     with httpx.Client(
@@ -799,11 +801,14 @@ def _fetch_html(url):
 
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; CareerLens/1.0; "
-            "+https://github.com/yannischong/CareerLens)"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
         ),
         "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Referer": "https://www.google.com/",
     }
 
     with httpx.Client(
@@ -848,35 +853,259 @@ def _fetch_html(url):
     raise ValueError("Too many redirects while fetching job posting")
 
 
-def _candidate_urls(job):
-    urls = []
-
-    def add(value):
-        value = str(value or "").strip()
-        if value and value not in urls:
-            urls.append(value)
-
+def _metadata_dict(job):
     metadata = job.get("source_metadata") or {}
+
     if isinstance(metadata, str):
         try:
             metadata = json.loads(metadata)
         except json.JSONDecodeError:
             metadata = {}
 
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _provider_structured_text(job, provider_text):
+    """Merge structured provider fields that are richer than the visible card.
+
+    SerpAPI can return job_highlights / qualifications / responsibilities even
+    when the main description is shortened. These fields should be analysed
+    before we conclude that the provider only supplied a snippet.
+    """
+
+    metadata = _metadata_dict(job)
+    parts = [str(provider_text or "").strip()]
+
+    def add(value, heading=None):
+        cleaned = _clean_text(value)
+        if not cleaned:
+            return
+
+        current = "\n\n".join(parts).casefold()
+        if cleaned.casefold() in current:
+            return
+
+        parts.append(
+            f"{heading}\n{cleaned}"
+            if heading
+            else cleaned
+        )
+
+    for key, heading in (
+        ("description", None),
+        ("job_description", "Job description"),
+        ("jobDescription", "Job description"),
+        ("description_text", "Job description"),
+        ("descriptionText", "Job description"),
+        ("qualifications", "Qualifications"),
+        ("requirements", "Requirements"),
+        ("responsibilities", "Responsibilities"),
+        ("skills", "Skills"),
+    ):
+        add(metadata.get(key), heading)
+
+    for highlights_key in ("job_highlights", "highlights"):
+        highlights = metadata.get(highlights_key) or []
+        if not isinstance(highlights, list):
+            continue
+
+        for block in highlights:
+            if not isinstance(block, dict):
+                continue
+
+            title = _clean_text(
+                block.get("title")
+                or block.get("heading")
+            )
+            items = block.get("items") or block.get("content") or []
+
+            if isinstance(items, list):
+                body = "\n".join(
+                    _clean_text(item)
+                    for item in items
+                    if _clean_text(item)
+                )
+            else:
+                body = _clean_text(items)
+
+            add(body, title or "Job details")
+
+    # Some providers retain the raw result under a nested key. Reuse the same
+    # hydration walker we use for embedded application state to recover long
+    # description-like values without pulling in unrelated metadata.
+    for _, value in _flatten_hydration_text(metadata):
+        add(value)
+
+    return _dedupe_lines("\n\n".join(part for part in parts if part))
+
+
+def _iter_metadata_urls(value, parent_key=""):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized_key = re.sub(
+                r"[^a-z0-9]+",
+                "",
+                str(key).casefold(),
+            )
+            yield from _iter_metadata_urls(child, normalized_key)
+        return
+
+    if isinstance(value, list):
+        for child in value:
+            yield from _iter_metadata_urls(child, parent_key)
+        return
+
+    if not isinstance(value, str):
+        return
+
+    candidate = html.unescape(value).strip().replace("\\/", "/")
+    if not candidate.startswith(("http://", "https://")):
+        return
+
+    # Only treat URL-like/apply-like metadata as navigation candidates. This
+    # avoids wasting requests on thumbnails, logos and unrelated resources.
+    if parent_key and not any(
+        hint in parent_key
+        for hint in (
+            "url",
+            "link",
+            "apply",
+            "posting",
+            "career",
+            "job",
+        )
+    ):
+        return
+
+    yield candidate
+
+
+def _candidate_urls(job):
+    urls = []
+
+    def add(value):
+        value = str(value or "").strip()
+        if not value or value in urls:
+            return
+
+        lowered = value.casefold().split("?", 1)[0]
+        if lowered.endswith(
+            (
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".svg",
+                ".webp",
+                ".ico",
+                ".pdf",
+            )
+        ):
+            return
+
+        urls.append(value)
+
+    metadata = _metadata_dict(job)
+
     for option in metadata.get("apply_options") or []:
         if isinstance(option, dict):
             add(option.get("link"))
+            add(option.get("url"))
+
+    for value in _iter_metadata_urls(metadata):
+        add(value)
 
     add(job.get("job_url"))
     add(metadata.get("share_link"))
 
     def score(url):
         host = (urlparse(url).hostname or "").casefold()
+        ats = _detect_ats(url) is not None
         aggregator = any(hint in host for hint in AGGREGATOR_HOST_HINTS)
-        return (1 if aggregator else 0, len(url))
+        return (
+            0 if ats else 1 if not aggregator else 2,
+            len(url),
+        )
 
-    return sorted(urls, key=score)
+    return sorted(urls, key=score)[:12]
 
+
+def _discover_page_urls(html_text, base_url):
+    """Find likely employer/ATS destinations exposed by aggregator pages."""
+
+    discovered = []
+
+    def add(raw_url, context=""):
+        if not raw_url:
+            return
+
+        value = html.unescape(str(raw_url)).replace("\\/", "/").strip()
+        if value.startswith(("mailto:", "javascript:", "tel:", "#")):
+            return
+
+        value = urljoin(base_url, value)
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return
+
+        if value == base_url:
+            return
+
+        lowered = value.casefold().split("?", 1)[0]
+        if lowered.endswith((".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico")):
+            return
+
+        key = (value, context.casefold())
+        if key not in discovered:
+            discovered.append(key)
+
+    anchor_pattern = re.compile(
+        r"<a\b[^>]*?href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>",
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in anchor_pattern.finditer(html_text or ""):
+        label = re.sub(r"<[^>]+>", " ", match.group(2) or "")
+        add(match.group(1), label)
+
+    for match in re.finditer(
+        r"<link\b[^>]*?href=[\"']([^\"']+)[\"'][^>]*>",
+        html_text or "",
+        re.IGNORECASE,
+    ):
+        tag = match.group(0).casefold()
+        if "canonical" in tag:
+            add(match.group(1), "canonical")
+
+    for match in re.finditer(
+        r"https?:\?/\?/[^\"'<>\s]+",
+        html_text or "",
+        re.IGNORECASE,
+    ):
+        raw = match.group(0).replace("\\/", "/")
+        if _detect_ats(raw):
+            add(raw, "ats embedded url")
+
+    def score(item):
+        url, context = item
+        host = (urlparse(url).hostname or "").casefold()
+        ats = _detect_ats(url) is not None
+        aggregator = any(hint in host for hint in AGGREGATOR_HOST_HINTS)
+        applyish = any(
+            token in context
+            for token in (
+                "apply",
+                "view job",
+                "job posting",
+                "career",
+                "position",
+            )
+        )
+        return (
+            0 if ats else 1 if applyish and not aggregator else 2 if not aggregator else 3,
+            len(url),
+        )
+
+    return [url for url, _ in sorted(discovered, key=score)[:8]]
 
 def _select_page_text(html_text, provider_text):
     parser = _PostingHTMLParser()
@@ -948,29 +1177,46 @@ def _merge_provider_supplements(full_text, job):
 def enrich_provider_job_description(job, provider_text):
     """Return the richest safe job description available for one provider job.
 
-    Network/page extraction failures are intentionally non-fatal. Callers always
-    receive the provider text as a fallback.
+    Phase 4B reliability order:
+    1. Merge structured provider fields (including Google Jobs highlights).
+    2. Try direct ATS endpoints.
+    3. Fetch the supplied page and inspect the final redirect destination.
+    4. Follow a small number of likely employer/ATS outbound links.
+    5. Fall back to provider data without failing the analysis request.
     """
 
-    provider_text = str(provider_text or "").strip()
-    metadata = job.get("source_metadata") or {}
-    if isinstance(metadata, str):
-        try:
-            metadata = json.loads(metadata)
-        except json.JSONDecodeError:
-            metadata = {}
-
+    original_provider_text = str(provider_text or "").strip()
+    provider_text = _provider_structured_text(job, original_provider_text)
+    metadata = _metadata_dict(job)
     description_type = str(metadata.get("description_type") or "").casefold()
 
-    base_completeness = (
-        "partial"
-        if description_type == "snippet" or len(provider_text) < 700
-        else "likely_full"
+    has_structured_sections = any(
+        metadata.get(key)
+        for key in (
+            "job_highlights",
+            "highlights",
+            "qualifications",
+            "requirements",
+            "responsibilities",
+        )
     )
+
+    if (
+        len(provider_text) >= 1200
+        and has_structured_sections
+    ):
+        base_completeness = "likely_full"
+        base_source = "provider_structured"
+    elif description_type == "snippet" or len(provider_text) < 700:
+        base_completeness = "partial"
+        base_source = "provider_structured" if provider_text != original_provider_text else "provider"
+    else:
+        base_completeness = "likely_full"
+        base_source = "provider_structured" if provider_text != original_provider_text else "provider"
 
     result = {
         "analysis_text": provider_text,
-        "description_source": "provider",
+        "description_source": base_source,
         "description_completeness": base_completeness,
         "source_url": None,
         "provider_characters": len(provider_text),
@@ -979,51 +1225,21 @@ def enrich_provider_job_description(job, provider_text):
         "fetch_attempted": False,
     }
 
-    for url in _candidate_urls(job):
-        result["fetch_attempted"] = True
+    attempted = set()
 
-        # Phase 4B: for common ATS platforms, call the public job-data
-        # endpoint that powers the rendered page. This retrieves descriptions
-        # that may not exist in the initial HTML at all.
-        ats_result = _fetch_ats_posting(url)
-        if ats_result is not None:
-            source, page_text, final_url = ats_result
-            enriched_text = _merge_provider_supplements(page_text, job)
-
-            if len(enriched_text) > len(provider_text):
-                result.update(
-                    {
-                        "analysis_text": enriched_text,
-                        "description_source": source,
-                        "description_completeness": "full",
-                        "source_url": final_url,
-                        "analysis_characters": len(enriched_text),
-                        "full_posting_retrieved": True,
-                    }
-                )
-                return result
-
-        try:
-            html_text, final_url = _fetch_html(url)
-            selected = _select_page_text(html_text, provider_text)
-        except Exception:
-            continue
-
-        if selected is None:
-            continue
-
-        source, page_text = selected
+    def apply_text(source, page_text, final_url, force_full=False):
         enriched_text = _merge_provider_supplements(page_text, job)
 
-        if len(enriched_text) <= len(provider_text):
-            continue
+        if len(enriched_text) <= len(result["analysis_text"]):
+            return False
 
-        ratio = (
-            len(enriched_text) / max(len(provider_text), 1)
-        )
+        ratio = len(enriched_text) / max(len(provider_text), 1)
 
-        if (
-            source in {"employer_jsonld", "employer_hydration"}
+        if force_full or (
+            source in {
+                "employer_jsonld",
+                "employer_hydration",
+            }
             and len(enriched_text) >= 800
         ):
             completeness = "full"
@@ -1042,7 +1258,79 @@ def enrich_provider_job_description(job, provider_text):
                 "full_posting_retrieved": completeness in {"full", "likely_full"},
             }
         )
+        return True
 
-        return result
+    def try_one(url, allow_outbound=True):
+        url = str(url or "").strip()
+        if not url or url in attempted:
+            return False
+
+        attempted.add(url)
+        result["fetch_attempted"] = True
+
+        try:
+            ats_result = _fetch_ats_posting(url)
+        except Exception:
+            ats_result = None
+
+        if ats_result is not None:
+            source, page_text, final_url = ats_result
+            if apply_text(source, page_text, final_url, force_full=True):
+                return True
+
+        try:
+            html_text, final_url = _fetch_html(url)
+        except Exception:
+            return False
+
+        # Aggregators such as Jooble can redirect to the actual employer/ATS
+        # posting. Re-run ATS detection on the final URL, not only the original
+        # provider URL.
+        if final_url and final_url != url:
+            try:
+                redirected_ats = _fetch_ats_posting(final_url)
+            except Exception:
+                redirected_ats = None
+
+            if redirected_ats is not None:
+                source, page_text, ats_url = redirected_ats
+                if apply_text(source, page_text, ats_url, force_full=True):
+                    return True
+
+        selected = _select_page_text(html_text, provider_text)
+        if selected is not None:
+            source, page_text = selected
+            if apply_text(source, page_text, final_url):
+                return True
+
+        if not allow_outbound:
+            return False
+
+        # When an aggregator renders a shell rather than redirecting, inspect a
+        # small number of likely Apply/View-job links and try the actual target.
+        for outbound in _discover_page_urls(html_text, final_url or url)[:4]:
+            if try_one(outbound, allow_outbound=False):
+                return True
+
+        return False
+
+    candidates = _candidate_urls(job)
+
+    for url in candidates:
+        if try_one(url):
+            break
+
+    print(
+        "[CareerLens provider enrichment] "
+        f"job_id={job.get('job_id')} "
+        f"source={job.get('source')} "
+        f"candidate_urls={len(candidates)} "
+        f"attempted_urls={len(attempted)} "
+        f"description_source={result['description_source']} "
+        f"completeness={result['description_completeness']} "
+        f"chars={result['provider_characters']}->{result['analysis_characters']}",
+        flush=True,
+    )
 
     return result
+

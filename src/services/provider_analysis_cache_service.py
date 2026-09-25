@@ -4,11 +4,11 @@ from sqlalchemy import text
 
 
 JOB_ANALYSIS_VERSION = (
-    "provider_job_ai_v4_ats_hydration"
+    "provider_job_ai_v5_full_source_reliable"
 )
 
 PROFILE_ANALYSIS_VERSION = (
-    "provider_resume_ai_v4_ats_hydration"
+    "provider_resume_ai_v5_full_source_reliable"
 )
 
 

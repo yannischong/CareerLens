@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 
 from dotenv import load_dotenv
@@ -1979,71 +1980,87 @@ def analyze_latest_search(
 
 
 def _provider_analysis_text(job):
+    """Build the richest provider-side text before external-page enrichment.
+
+    Google Jobs/SerpAPI can expose qualifications and responsibilities under
+    source_metadata even when the visible description is shortened. Including
+    them here prevents the AI from being limited to the card snippet.
+    """
+
     parts = []
 
-    description = (
-        job.get(
-            "description"
-        )
-        or ""
-    ).strip()
-
-    if description:
-        parts.append(
-            description
-        )
-
-    supplemental_fields = [
-        (
-            "Requirements",
-            job.get(
-                "requirements_text"
-            ),
-        ),
-        (
-            "Education requirements",
-            job.get(
-                "education_requirements"
-            ),
-        ),
-        (
-            "Experience requirements",
-            job.get(
-                "experience_requirements"
-            ),
-        ),
-    ]
-
-    normalized_description = (
-        description.casefold()
-    )
-
-    for heading, value in supplemental_fields:
-        value = str(
-            value
-            or ""
-        ).strip()
-
+    def add(value, heading=None):
+        value = str(value or "").strip()
         if not value:
-            continue
+            return
 
-        # Providers sometimes duplicate these fields inside the main
-        # description. Avoid needlessly sending identical text to the model.
-        if (
-            normalized_description
-            and value.casefold()
-            in normalized_description
-        ):
-            continue
+        combined = "\n\n".join(parts).casefold()
+        if value.casefold() in combined:
+            return
 
         parts.append(
             f"{heading}\n{value}"
+            if heading
+            else value
         )
 
-    return "\n\n".join(
-        parts
-    ).strip()
+    description = str(job.get("description") or "").strip()
+    add(description)
 
+    for heading, key in (
+        ("Requirements", "requirements_text"),
+        ("Education requirements", "education_requirements"),
+        ("Experience requirements", "experience_requirements"),
+    ):
+        add(job.get(key), heading)
+
+    metadata = job.get("source_metadata") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError:
+            metadata = {}
+
+    if isinstance(metadata, dict):
+        for key, heading in (
+            ("description", None),
+            ("job_description", "Job description"),
+            ("jobDescription", "Job description"),
+            ("qualifications", "Qualifications"),
+            ("requirements", "Requirements"),
+            ("responsibilities", "Responsibilities"),
+            ("skills", "Skills"),
+        ):
+            add(metadata.get(key), heading)
+
+        for highlights_key in ("job_highlights", "highlights"):
+            highlights = metadata.get(highlights_key) or []
+            if not isinstance(highlights, list):
+                continue
+
+            for block in highlights:
+                if not isinstance(block, dict):
+                    continue
+
+                heading = str(
+                    block.get("title")
+                    or block.get("heading")
+                    or "Job details"
+                ).strip()
+
+                items = block.get("items") or block.get("content") or []
+                if isinstance(items, list):
+                    body = "\n".join(
+                        str(item).strip()
+                        for item in items
+                        if str(item).strip()
+                    )
+                else:
+                    body = str(items or "").strip()
+
+                add(body, heading)
+
+    return "\n\n".join(parts).strip()
 
 def _provider_level_rank(
     level,
@@ -2750,6 +2767,7 @@ def analyze_provider_job(
                         j.raw_title,
                         j.raw_company_name,
                         j.source,
+                        j.source_job_id,
                         j.job_url,
                         j.source_metadata,
                         j.description,
@@ -3066,13 +3084,18 @@ def analyze_provider_job(
             )
 
         except Exception as exc:
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "On-demand job analysis failed: "
-                    + str(exc)[:300]
-                ),
-            ) from exc
+            print(
+                "[CareerLens provider analysis] "
+                f"model/extraction failed for job {job_id}; "
+                f"returning existing fallback analysis: {exc}",
+                flush=True,
+            )
+
+            analysis_method = (
+                "rule_fallback_after_analysis_error_v3"
+            )
+            requirements = []
+            skills = []
 
         job_cache_hit = False
 
@@ -3101,6 +3124,7 @@ def analyze_provider_job(
                 pass
 
     model_results = {}
+    resume_model_used = False
 
     if resume_text and skills:
         try:
@@ -3141,8 +3165,18 @@ def analyze_provider_job(
                 )
             )
 
-        except Exception:
+            resume_model_used = bool(
+                model_results
+            )
+
+        except Exception as exc:
+            print(
+                "[CareerLens provider resume model] "
+                f"verification failed for job {job_id}: {exc}",
+                flush=True,
+            )
             model_results = {}
+            resume_model_used = False
 
     profile_fit = (
         _build_provider_profile_fit(
@@ -3167,6 +3201,14 @@ def analyze_provider_job(
         "analysis_method":
             analysis_method,
 
+        "job_model_used":
+            analysis_method.startswith(
+                "model_assisted"
+            ),
+
+        "resume_model_used":
+            resume_model_used,
+
         "requirements":
             requirements,
 
@@ -3189,6 +3231,10 @@ def analyze_provider_job(
     if (
         resume_id is not None
         and profile_fit is not None
+        and analysis_method.startswith(
+            "model_assisted"
+        )
+        and resume_model_used
     ):
         try:
             with engine.begin() as connection:

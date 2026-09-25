@@ -472,6 +472,12 @@ type ProviderJobAnalysisResponse = {
   analysis_method:
     string;
 
+  job_model_used:
+    boolean;
+
+  resume_model_used:
+    boolean;
+
   requirements:
     Requirement[];
 
@@ -3732,7 +3738,14 @@ export default function DashboardClient({
                     .resume_match_percentage,
 
                 ai_analysis_cached:
-                  true,
+                  (
+                    data.cache_hit
+                    === "profile"
+                    || (
+                      data.job_model_used
+                      && data.resume_model_used
+                    )
+                  ),
 
                 analysis_method:
                   data
@@ -3782,14 +3795,14 @@ export default function DashboardClient({
                       ? "Reused the saved job-skill analysis and refreshed the comparison for your current resume."
                       : "Loaded saved job-skill analysis for this role."
                   )
-                : data.profile_fit
-                ? "AI-refined skill extraction and resume evidence are loaded for this role."
-                : data.analysis_method
-                  .startsWith(
-                    "model_assisted"
+                : (
+                    data.job_model_used
+                    && data.resume_model_used
                   )
-                ? "AI-refined skill extraction is loaded. The existing resume comparison is retained."
-                : "The model was unavailable, so CareerCompass kept the fallback extraction for this role.",
+                ? "AI-refined skill extraction and resume evidence are loaded for this role."
+                : data.job_model_used
+                ? "AI-refined job skills are loaded, but resume verification did not complete. The fallback resume comparison is shown."
+                : "AI extraction did not complete, so CareerCompass is showing the fallback analysis for this role.",
           },
         })
       );
