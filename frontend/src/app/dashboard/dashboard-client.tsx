@@ -782,6 +782,85 @@ function formatText(
 }
 
 
+const JOB_DESCRIPTION_ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  quot: '"',
+  apos: "'",
+  lt: "<",
+  gt: ">",
+  hellip: "…",
+  ndash: "–",
+  mdash: "—",
+  bull: "•",
+  middot: "·",
+  rsquo: "’",
+  lsquo: "‘",
+  rdquo: "”",
+  ldquo: "“",
+};
+
+
+function decodeJobDescriptionEntities(
+  value: string
+) {
+  return value.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi,
+    (match, entity: string) => {
+      const normalized =
+        entity.toLowerCase();
+
+      if (
+        normalized.startsWith(
+          "#x"
+        )
+      ) {
+        const codePoint =
+          Number.parseInt(
+            normalized.slice(2),
+            16
+          );
+
+        return Number.isFinite(
+          codePoint
+        )
+          ? String.fromCodePoint(
+              codePoint
+            )
+          : " ";
+      }
+
+      if (
+        normalized.startsWith(
+          "#"
+        )
+      ) {
+        const codePoint =
+          Number.parseInt(
+            normalized.slice(1),
+            10
+          );
+
+        return Number.isFinite(
+          codePoint
+        )
+          ? String.fromCodePoint(
+              codePoint
+            )
+          : " ";
+      }
+
+      return (
+        JOB_DESCRIPTION_ENTITIES[
+          normalized
+        ]
+        ?? " "
+      );
+    }
+  );
+}
+
+
 function cleanJobDescription(
   value: string | null
 ) {
@@ -789,38 +868,45 @@ function cleanJobDescription(
     return "";
   }
 
-  return value
+  let cleaned = value;
+
+  // Provider snippets are sometimes
+  // HTML-encoded more than once.
+  for (
+    let pass = 0;
+    pass < 3;
+    pass += 1
+  ) {
+    cleaned =
+      decodeJobDescriptionEntities(
+        cleaned
+      );
+  }
+
+  return cleaned
     .replace(
-      /&nbsp;|&#160;|&#x0*a0;/gi,
+      /<script\b[^>]*>[\s\S]*?<\/script>/gi,
       " "
     )
     .replace(
-      /&amp;/gi,
-      "&"
+      /<style\b[^>]*>[\s\S]*?<\/style>/gi,
+      " "
     )
     .replace(
-      /&quot;/gi,
-      '"'
-    )
-    .replace(
-      /&#39;|&apos;/gi,
-      "'"
-    )
-    .replace(
-      /&lt;/gi,
-      "<"
-    )
-    .replace(
-      /&gt;/gi,
-      ">"
+      /<!--[\s\S]*?-->/g,
+      " "
     )
     .replace(
       /<br\s*\/?\s*>/gi,
-      " "
+      "\n"
     )
     .replace(
-      /<\/(?:p|div|li)>/gi,
-      " "
+      /<li\b[^>]*>/gi,
+      " • "
+    )
+    .replace(
+      /<\/?(?:p|div|ul|ol|section|article|h[1-6]|tr|td|th)\b[^>]*>/gi,
+      "\n"
     )
     .replace(
       /<[^>]*>/g,
@@ -831,16 +917,31 @@ function cleanJobDescription(
       " "
     )
     .replace(
-      /\s+/g,
+      /[ \t\f\v]+/g,
       " "
     )
     .replace(
-      /^(?:\.{2,}|…)+\s*/,
+      / *\n */g,
+      "\n"
+    )
+    .replace(
+      /\n{2,}/g,
+      "\n"
+    )
+    .replace(
+      /\s+([,.;:!?])/g,
+      "$1"
+    )
+    .replace(
+      /\.\s*\.\s*\./g,
+      "…"
+    )
+    .replace(
+      /^(?:…|\.{2,})\s*/,
       ""
     )
     .trim();
 }
-
 
 
 function formatDateTime(
@@ -7610,123 +7711,135 @@ export default function DashboardClient({
                       }
                       className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        {
-                          job.raw_title
-                        }
-                      </h3>
 
+                      <div className="flex flex-col justify-between gap-5 md:flex-row">
 
-                      {
-                        cleanJobDescription(
-                          job.description
-                        )
-                        && (
-                          <p className="mt-3 text-sm leading-6 text-slate-600">
+                        <div className="min-w-0 flex-1">
+
+                          <h3 className="text-lg font-semibold text-slate-900">
                             {
-                              cleanJobDescription(
-                                job.description
-                              ).length
-                              > 420
-                                ? (
-                                    cleanJobDescription(
-                                      job.description
-                                    ).slice(
-                                      0,
-                                      420
-                                    ).trimEnd()
-                                    + "…"
-                                  )
-                                : cleanJobDescription(
-                                    job.description
-                                  )
+                              job.raw_title
                             }
-                          </p>
-                        )
-                      }
+                          </h3>
 
 
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {
-                          getTrackedOpportunity(
-                            job.job_id
-                          )
-                          ? (
-                            <button
-                              type="button"
-                              disabled
-                              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
-                            >
-                              Saved · {
-                                formatText(
-                                  getTrackedOpportunity(
-                                    job.job_id
-                                  )!
-                                    .current_status
-                                )
-                              }
-                            </button>
-                          )
-                          : (
-                            <button
-                              type="button"
-                              onClick={
-                                () =>
-                                  handleTrackJob(
-                                    job.job_id
-                                  )
-                              }
-                              disabled={
-                                trackingJobId
-                                === job.job_id
-                              }
-                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {
-                                trackingJobId
-                                === job.job_id
-                                && (
-                                  <LoadingSpinner
-                                    label="Saving job to My Applications"
-                                  />
-                                )
-                              }
-
-                              {
-                                trackingJobId
-                                === job.job_id
-                                  ? "Saving..."
-                                  : "Save / Track"
-                              }
-                            </button>
-                          )
-                        }
-
-
-                        <a
-                          href={
-                            job.job_url
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          View Job Posting
-                        </a>
-
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            sendJobToAnalyser(
-                              job
+                          {
+                            cleanJobDescription(
+                              job.description
+                            )
+                            && (
+                              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+                                {
+                                  cleanJobDescription(
+                                    job.description
+                                  ).length
+                                  > 320
+                                    ? (
+                                        cleanJobDescription(
+                                          job.description
+                                        ).slice(
+                                          0,
+                                          320
+                                        ).trimEnd()
+                                        + "…"
+                                      )
+                                    : cleanJobDescription(
+                                        job.description
+                                      )
+                                }
+                              </p>
                             )
                           }
-                          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-[#0A66C2] hover:bg-blue-100"
-                        >
-                          Analyse Job
-                        </button>
+
+                        </div>
+
+
+                        <div className="flex h-fit flex-wrap gap-2 md:max-w-[360px] md:justify-end">
+
+                          {
+                            getTrackedOpportunity(
+                              job.job_id
+                            )
+                            ? (
+                              <button
+                                type="button"
+                                disabled
+                                className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
+                              >
+                                Saved · {
+                                  formatText(
+                                    getTrackedOpportunity(
+                                      job.job_id
+                                    )!
+                                      .current_status
+                                  )
+                                }
+                              </button>
+                            )
+                            : (
+                              <button
+                                type="button"
+                                onClick={
+                                  () =>
+                                    handleTrackJob(
+                                      job.job_id
+                                    )
+                                }
+                                disabled={
+                                  trackingJobId
+                                  === job.job_id
+                                }
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {
+                                  trackingJobId
+                                  === job.job_id
+                                  && (
+                                    <LoadingSpinner
+                                      label="Saving job to My Applications"
+                                    />
+                                  )
+                                }
+
+                                {
+                                  trackingJobId
+                                  === job.job_id
+                                    ? "Saving..."
+                                    : "Save / Track"
+                                }
+                              </button>
+                            )
+                          }
+
+
+                          <a
+                            href={
+                              job.job_url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            View Job Posting
+                          </a>
+
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              sendJobToAnalyser(
+                                job
+                              )
+                            }
+                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-[#0A66C2] hover:bg-blue-100"
+                          >
+                            Analyse Job
+                          </button>
+
+                        </div>
+
                       </div>
+
                     </article>
 
                   )

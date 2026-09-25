@@ -1300,15 +1300,12 @@ export function ManualJobImport({
                       !current
                   )
                 }
-                className="text-xs font-semibold text-blue-100 underline-offset-4 hover:text-white hover:underline"
+                className="text-xs font-semibold text-blue-100 underline underline-offset-4 hover:text-white"
               >
                 {
                   showDescriptionFallback
-                    ? "Hide pasted description"
-                    : (
-                      "Paste full job description "
-                      + "for maximum accuracy"
-                    )
+                    ? "Hide pasted job description"
+                    : "Click here to paste job description..."
                 }
               </button>
 
