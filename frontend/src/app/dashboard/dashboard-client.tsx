@@ -8905,11 +8905,17 @@ export default function DashboardClient({
 
 
                       {
-                        providerAnalysisStates[
-                          job.job_id
-                        ]
-                          ?.status
-                        === "loading"
+                        (
+                          !providerAnalysisStates[
+                            job.job_id
+                          ]
+                            ?.status
+                          || providerAnalysisStates[
+                            job.job_id
+                          ]
+                            ?.status
+                          === "loading"
+                        )
                         && (
 
                           <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
@@ -9011,15 +9017,25 @@ export default function DashboardClient({
                                   ? "CareerLens could not retrieve a complete source posting, so some requirements may still be missing."
                                   : job
                                     .description_source
-                                  === "employer_jsonld"
-                                    ? "CareerLens analysed the structured job posting supplied by the employer page."
+                                    ?.startsWith(
+                                      "ats_"
+                                    )
+                                    ? "CareerLens retrieved the full posting data from the employer's applicant-tracking system."
                                     : job
                                       .description_source
-                                      ?.startsWith(
-                                        "employer"
-                                      )
-                                      ? "CareerLens analysed the expanded content retrieved from the employer page."
-                                      : "The provider supplied a sufficiently detailed description for analysis."
+                                    === "employer_jsonld"
+                                      ? "CareerLens analysed the structured job posting supplied by the employer page."
+                                      : job
+                                        .description_source
+                                      === "employer_hydration"
+                                        ? "CareerLens recovered the expanded job description embedded in the employer page's application data."
+                                        : job
+                                          .description_source
+                                          ?.startsWith(
+                                            "employer"
+                                          )
+                                          ? "CareerLens analysed the expanded content retrieved from the employer page."
+                                          : "The provider supplied a sufficiently detailed description for analysis."
                               }
                             </div>
                           </div>
@@ -9027,6 +9043,22 @@ export default function DashboardClient({
                         )
                       }
 
+
+                      {
+                        (
+                          providerAnalysisStates[
+                            job.job_id
+                          ]
+                            ?.status
+                          === "ready"
+                          || providerAnalysisStates[
+                            job.job_id
+                          ]
+                            ?.status
+                          === "error"
+                        )
+                        && (
+                          <>
 
                       {
                         job
@@ -10075,6 +10107,11 @@ export default function DashboardClient({
                         </p>
 
                       </div>
+
+
+                          </>
+                        )
+                      }
 
 
                         </div>
