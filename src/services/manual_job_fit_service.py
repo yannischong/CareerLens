@@ -471,6 +471,41 @@ def _apply_model_results(
                 or "gap"
             )
 
+            model_evidence = (
+                model_result.get(
+                    "evidence"
+                )
+            )
+
+            model_confidence = (
+                model_result.get(
+                    "confidence"
+                )
+            )
+
+            model_status = (
+                model_result.get(
+                    "status"
+                )
+            )
+
+            if (
+                model_status
+                != "unsupported"
+                and model_evidence
+            ):
+                concept[
+                    "model_evidence"
+                ] = model_evidence
+
+                concept[
+                    "model_confidence"
+                ] = model_confidence
+
+                concept[
+                    "model_match_status"
+                ] = model_status
+
             upgraded = (
                 _upgraded_status(
                     baseline,
@@ -504,17 +539,6 @@ def _apply_model_results(
                     "evidence_status"
                 ] = "candidate"
 
-            concept[
-                "model_evidence"
-            ] = model_result.get(
-                "evidence"
-            )
-
-            concept[
-                "model_confidence"
-            ] = model_result.get(
-                "confidence"
-            )
 
         _reassess_group(
             group

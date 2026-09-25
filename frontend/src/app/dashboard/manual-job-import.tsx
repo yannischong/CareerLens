@@ -109,6 +109,12 @@ type FitConcept = {
   claim_status: string;
   evidence_status: string;
   fit_status: string;
+  model_evidence?:
+    string | null;
+  model_confidence?:
+    number | null;
+  model_match_status?:
+    string | null;
 };
 
 
@@ -241,9 +247,11 @@ function fitLabel(
   if (
     status
     === "claimed_only"
+    || status
+    === "candidate"
   ) {
     return (
-      "Mentioned, but evidence is limited"
+      "Partially supported"
     );
   }
 
@@ -1707,7 +1715,7 @@ export function ManualJobImport({
 
 
                             <p className="mt-1 text-xs font-semibold text-amber-700">
-                              Needs review
+                              Partially supported / needs review
                             </p>
 
                           </div>
@@ -1765,21 +1773,69 @@ export function ManualJobImport({
                                         .length
                                       > 0
                                       && (
-                                        <p className="mt-2 text-xs text-slate-500">
+                                        <div className="mt-3 space-y-2">
                                           {
                                             group
                                               .concepts
                                               .map(
                                                 (
                                                   concept
-                                                ) =>
-                                                  concept.name
-                                              )
-                                              .join(
-                                                " · "
+                                                ) => (
+                                                  <div
+                                                    key={
+                                                      group
+                                                        .requirement_mention_id
+                                                      + "-"
+                                                      + concept
+                                                        .concept_id
+                                                    }
+                                                    className="rounded-lg bg-slate-50 px-3 py-2"
+                                                  >
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                      <span className="text-xs font-semibold text-slate-700">
+                                                        {
+                                                          concept.name
+                                                        }
+                                                      </span>
+
+                                                      <span
+                                                        className={
+                                                          "rounded-full border px-2 py-0.5 text-[11px] font-semibold "
+                                                          + fitClassName(
+                                                              concept
+                                                                .fit_status
+                                                            )
+                                                        }
+                                                      >
+                                                        {
+                                                          fitLabel(
+                                                            concept
+                                                              .fit_status
+                                                          )
+                                                        }
+                                                      </span>
+                                                    </div>
+
+                                                    {
+                                                      concept
+                                                        .model_evidence
+                                                      && (
+                                                        <p className="mt-2 text-xs leading-5 text-slate-600">
+                                                          <span className="font-semibold text-slate-700">
+                                                            Resume evidence:
+                                                          </span>{" "}
+                                                          “{
+                                                            concept
+                                                              .model_evidence
+                                                          }”
+                                                        </p>
+                                                      )
+                                                    }
+                                                  </div>
+                                                )
                                               )
                                           }
-                                        </p>
+                                        </div>
                                       )
                                     }
 

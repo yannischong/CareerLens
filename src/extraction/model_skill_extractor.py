@@ -47,7 +47,9 @@ A soft skill is a transferable interpersonal or cognitive competency such as com
 
 Do not extract company names, team names, generic nouns, industries by themselves, benefits, degrees, years of experience, seniority, locations, personality fluff, or vague words such as 'business', 'management', 'support', 'reports', 'customers', 'projects', 'technology', 'risk' or 'finance' unless the text clearly names a professional competency (for example 'risk management' or 'financial analysis').
 
-Prefer concise canonical names. Do not invent a skill merely because it would probably be useful for the role. Responsibility sections may provide evidence of skills, but only extract the competency actually demonstrated by the action. For example, 'assess third-party risks' can support 'Risk Assessment' and 'Third-Party Risk Management'; 'prepare reports' alone should not become a vague 'Reporting' skill unless the surrounding text makes a specific professional competency clear.
+Prefer concise canonical names. Normalize common abbreviations and expanded forms to one canonical skill name across the whole response. For example, TPRM and third-party risk management should both become 'Third-Party Risk Management'; DCF and discounted cash flow should become one DCF skill; CRM and customer relationship management should become one CRM skill. If both an acronym and its expanded form appear, return only one canonical skill rather than duplicate entries.
+
+Do not invent a skill merely because it would probably be useful for the role. Responsibility sections may provide evidence of skills, but only extract the competency actually demonstrated by the action. For example, 'assess third-party risks' can support 'Risk Assessment' and 'Third-Party Risk Management'; 'prepare reports' alone should not become a vague 'Reporting' skill unless the surrounding text makes a specific professional competency clear.
 
 For each skill, return a short exact evidence excerpt copied from the supplied section. Never use text from ignored company, benefits, application or legal sections because those sections are not supplied to you.
 """

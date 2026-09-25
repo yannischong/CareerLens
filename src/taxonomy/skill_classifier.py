@@ -397,6 +397,212 @@ HARD_SKILL_ALIASES.update({
 })
 
 
+def _register_hard_skill_aliases(
+    canonical_name,
+    canonical_key,
+    aliases,
+):
+    for alias in aliases:
+        normalized_alias = (
+            normalize_skill_text(
+                alias
+            )
+        )
+
+        if not normalized_alias:
+            continue
+
+        HARD_SKILL_ALIASES[
+            normalized_alias
+        ] = (
+            canonical_name,
+            canonical_key,
+        )
+
+
+# Cross-profession canonical aliases. These are intentionally limited to
+# well-established abbreviations/synonyms where merging is safe.
+_register_hard_skill_aliases(
+    "Third-Party Risk Management",
+    "third party risk management",
+    [
+        "TPRM",
+        "third party risk management",
+        "third-party risk management",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "New Product Approval Process (NPAP)",
+    "new product approval process",
+    [
+        "NPAP",
+        "new product approval process",
+        "new-product approval process",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Risk Assessment",
+    "risk assessment",
+    [
+        "risk assessment",
+        "risk assessments",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Risk Mitigation",
+    "risk mitigation",
+    [
+        "risk mitigation",
+        "risk mitigation strategies",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Risk Governance",
+    "risk governance",
+    [
+        "risk governance",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Risk Monitoring",
+    "risk monitoring",
+    [
+        "risk monitoring",
+        "risk monitoring and reporting",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Regulatory Compliance",
+    "regulatory compliance",
+    [
+        "regulatory compliance",
+        "regulatory compliance requirements",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Due Diligence",
+    "due diligence",
+    [
+        "due diligence",
+        "due diligence review",
+        "due diligence reviews",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Key Risk Indicators (KRIs)",
+    "key risk indicators",
+    [
+        "KRI",
+        "KRIs",
+        "key risk indicator",
+        "key risk indicators",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Internal Audit",
+    "internal audit",
+    [
+        "internal audit",
+        "internal audits",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Regulatory Review",
+    "regulatory review",
+    [
+        "regulatory review",
+        "regulatory reviews",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Financial Planning & Analysis (FP&A)",
+    "financial planning and analysis",
+    [
+        "FP&A",
+        "FPA",
+        "financial planning and analysis",
+        "financial planning & analysis",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Mergers & Acquisitions",
+    "mergers and acquisitions",
+    [
+        "M&A",
+        "M and A",
+        "mergers and acquisitions",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Machine Learning",
+    "machine learning",
+    [
+        "ML",
+        "machine learning",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Artificial Intelligence",
+    "artificial intelligence",
+    [
+        "AI",
+        "artificial intelligence",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Natural Language Processing (NLP)",
+    "natural language processing",
+    [
+        "NLP",
+        "natural language processing",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Search Engine Optimisation (SEO)",
+    "search engine optimisation",
+    [
+        "SEO",
+        "search engine optimization",
+        "search engine optimisation",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Human Resources Information System (HRIS)",
+    "human resources information system",
+    [
+        "HRIS",
+        "human resources information system",
+        "human resources information systems",
+    ],
+)
+
+_register_hard_skill_aliases(
+    "Enterprise Resource Planning (ERP)",
+    "enterprise resource planning",
+    [
+        "ERP",
+        "enterprise resource planning",
+    ],
+)
+
+
 LEADING_ACTION_PATTERN = re.compile(
     r"^(?:"
     r"build|"
@@ -554,6 +760,34 @@ def canonicalize_hard_skill(
 
     if canonical is not None:
         return canonical
+
+    # Model output often includes a helpful acronym alongside the expanded
+    # skill name, for example "Discounted Cash Flow (DCF)" or
+    # "Third-Party Risk Management (TPRM)". If the phrase contains exactly
+    # one known canonical skill, collapse the decorated form to that skill.
+    contained_matches = (
+        find_hard_skills(
+            text
+        )
+    )
+
+    if len(
+        contained_matches
+    ) == 1:
+        match = (
+            contained_matches[
+                0
+            ]
+        )
+
+        return (
+            match[
+                "raw_text"
+            ],
+            match[
+                "normalized_key"
+            ],
+        )
 
     return (
         text,
