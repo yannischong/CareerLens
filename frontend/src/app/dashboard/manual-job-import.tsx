@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  useEffect,
   useState,
 } from "react";
 
@@ -209,6 +210,15 @@ type OpportunityResponse = {
     current_status:
       string;
   };
+};
+
+
+type SearchJobHandoff = {
+  title: string;
+  company: string;
+  location: string | null;
+  sourceUrl: string;
+  source: string;
 };
 
 
@@ -451,7 +461,7 @@ export function ManualJobImport({
     showDescriptionFallback,
     setShowDescriptionFallback,
   ] = useState(
-    false
+    true
   );
 
 
@@ -525,6 +535,83 @@ export function ManualJobImport({
   ] = useState<
     OpportunityResponse | null
   >(null);
+
+
+  const [
+    searchJobHandoff,
+    setSearchJobHandoff,
+  ] = useState<
+    SearchJobHandoff | null
+  >(null);
+
+
+  useEffect(() => {
+    function handleSearchJobHandoff(
+      event: Event
+    ) {
+      const detail = (
+        event as CustomEvent<
+          SearchJobHandoff
+        >
+      ).detail;
+
+
+      if (!detail) {
+        return;
+      }
+
+
+      setSearchJobHandoff(
+        detail
+      );
+
+      setUrl(
+        ""
+      );
+
+      setManualDescription(
+        ""
+      );
+
+      setShowDescriptionFallback(
+        true
+      );
+
+      setError(
+        null
+      );
+
+      setPreview(
+        null
+      );
+
+      setImported(
+        null
+      );
+
+      setAnalysis(
+        null
+      );
+
+      setOpportunity(
+        null
+      );
+    }
+
+
+    window.addEventListener(
+      "careerlens:analyse-search-job",
+      handleSearchJobHandoff
+    );
+
+
+    return () => {
+      window.removeEventListener(
+        "careerlens:analyse-search-job",
+        handleSearchJobHandoff
+      );
+    };
+  }, []);
 
 
   async function getAccessToken() {
@@ -1068,7 +1155,7 @@ export function ManualJobImport({
 
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50/90">
-              Paste a public job listing URL. CareerCompass will read the role, extract its requirements and help compare them with your resume.
+              Use the original employer job listing whenever possible. CareerCompass will extract its requirements and compare them with your resume. For the most reliable result, paste the full description too when the page hides content behind “View more”.
             </p>
 
           </div>
@@ -1081,6 +1168,61 @@ export function ManualJobImport({
           </div>
 
 
+          {
+            searchJobHandoff
+            && (
+              <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 text-slate-800 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0A66C2]">
+                  Selected from job search
+                </p>
+
+                <p className="mt-1 font-bold">
+                  {searchJobHandoff.title}
+                </p>
+
+                <p className="text-sm text-slate-600">
+                  {searchJobHandoff.company}
+                  {
+                    searchJobHandoff.location
+                    ? ` · ${searchJobHandoff.location}`
+                    : ""
+                  }
+                </p>
+
+                <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                  <p className="font-semibold">
+                    For an accurate analysis:
+                  </p>
+
+                  <ol className="mt-2 list-decimal space-y-1 pl-5">
+                    <li>
+                      Open the source listing below.
+                    </li>
+                    <li>
+                      Follow it to the company&apos;s own careers page if available.
+                    </li>
+                    <li>
+                      Copy the original employer job URL into the field below.
+                    </li>
+                    <li>
+                      If the page uses &quot;View more&quot;, also paste the full description.
+                    </li>
+                  </ol>
+
+                  <a
+                    href={searchJobHandoff.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#0A66C2] hover:bg-blue-50"
+                  >
+                    Open source listing
+                  </a>
+                </div>
+              </div>
+            )
+          }
+
+
           <form
             onSubmit={
               handlePreview
@@ -1091,6 +1233,7 @@ export function ManualJobImport({
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
 
                 <input
+                  id="careercompass-manual-job-url"
                   type="url"
                   value={
                     url
@@ -1104,7 +1247,7 @@ export function ManualJobImport({
                       resetImportedState();
                     }
                   }
-                  placeholder="https://company.com/careers/job..."
+                  placeholder="Paste the original employer job URL..."
                   required
                   className="min-h-12 flex-1 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                 />
@@ -1129,7 +1272,7 @@ export function ManualJobImport({
                   {
                     loading
                       ? "Reading listing..."
-                      : "Read Job Listing"
+                      : "Read Original Listing"
                   }
                 </button>
 
@@ -1161,10 +1304,10 @@ export function ManualJobImport({
               >
                 {
                   showDescriptionFallback
-                    ? "Hide manual description"
+                    ? "Hide pasted description"
                     : (
-                      "Page blocked? "
-                      + "Paste the job description instead"
+                      "Paste full job description "
+                      + "for maximum accuracy"
                     )
                 }
               </button>
@@ -1189,7 +1332,7 @@ export function ManualJobImport({
                     rows={
                       8
                     }
-                    placeholder="Paste the full job description here..."
+                    placeholder="Paste the complete job description here, including requirements, responsibilities and preferred qualifications..."
                     className="w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                   />
                 )
