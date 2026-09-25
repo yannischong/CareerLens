@@ -461,7 +461,7 @@ export function ManualJobImport({
     showDescriptionFallback,
     setShowDescriptionFallback,
   ] = useState(
-    true
+    false
   );
 
 
@@ -574,7 +574,7 @@ export function ManualJobImport({
       );
 
       setShowDescriptionFallback(
-        true
+        false
       );
 
       setError(
@@ -1155,7 +1155,7 @@ export function ManualJobImport({
 
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50/90">
-              Use the original employer job listing whenever possible. CareerCompass will extract its requirements and compare them with your resume. For the most reliable result, paste the full description too when the page hides content behind “View more”.
+              Extract the key requirements from a job listing and compare them with your resume to identify strengths, gaps and tailoring opportunities.
             </p>
 
           </div>
@@ -1292,6 +1292,9 @@ export function ManualJobImport({
 
               <button
                 type="button"
+                aria-expanded={
+                  showDescriptionFallback
+                }
                 onClick={() =>
                   setShowDescriptionFallback(
                     (
@@ -1300,16 +1303,9 @@ export function ManualJobImport({
                       !current
                   )
                 }
-                className="text-xs font-semibold text-blue-100 underline-offset-4 hover:text-white hover:underline"
+                className="text-xs font-semibold text-blue-100 underline underline-offset-4 hover:text-white"
               >
-                {
-                  showDescriptionFallback
-                    ? "Hide pasted description"
-                    : (
-                      "Paste full job description "
-                      + "for maximum accuracy"
-                    )
-                }
+                Click here to paste full job description for maximum accuracy
               </button>
 
 

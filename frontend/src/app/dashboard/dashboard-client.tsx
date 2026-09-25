@@ -782,6 +782,227 @@ function formatText(
 }
 
 
+function decodeHtmlEntityPass(
+  value: string
+) {
+  const namedEntities:
+    Record<string, string> = {
+      nbsp: " ",
+      amp: "&",
+      lt: "<",
+      gt: ">",
+      quot: '"',
+      apos: "'",
+    };
+
+
+  return value
+    .replace(
+      /&#x[0-9a-f]+;/gi,
+      (entity) => {
+        const codePoint =
+          Number.parseInt(
+            entity.slice(
+              3,
+              -1
+            ),
+            16
+          );
+
+        return (
+          Number.isFinite(
+            codePoint
+          )
+          && codePoint >= 0
+          && codePoint <= 0x10ffff
+        )
+          ? String.fromCodePoint(
+              codePoint
+            )
+          : " ";
+      }
+    )
+    .replace(
+      /&#\d+;/g,
+      (entity) => {
+        const codePoint =
+          Number.parseInt(
+            entity.slice(
+              2,
+              -1
+            ),
+            10
+          );
+
+        return (
+          Number.isFinite(
+            codePoint
+          )
+          && codePoint >= 0
+          && codePoint <= 0x10ffff
+        )
+          ? String.fromCodePoint(
+              codePoint
+            )
+          : " ";
+      }
+    )
+    .replace(
+      /&(nbsp|amp|lt|gt|quot|apos);/gi,
+      (entity) =>
+        namedEntities[
+          entity
+            .slice(
+              1,
+              -1
+            )
+            .toLowerCase()
+        ]
+        ?? " "
+    );
+}
+
+
+function cleanProviderText(
+  value:
+    string | null | undefined
+) {
+  if (!value) {
+    return "";
+  }
+
+
+  let cleaned = value;
+
+
+  for (
+    let pass = 0;
+    pass < 3;
+    pass += 1
+  ) {
+    const before = cleaned;
+
+    cleaned =
+      decodeHtmlEntityPass(
+        cleaned
+      )
+      .replace(
+        /<br\s*\/?\s*>/gi,
+        " "
+      )
+      .replace(
+        /<\/p\s*>/gi,
+        " "
+      )
+      .replace(
+        /<[^>]+>/g,
+        " "
+      );
+
+    if (
+      cleaned === before
+    ) {
+      break;
+    }
+  }
+
+
+  return cleaned
+    .replaceAll(
+      "\u00a0",
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .replace(
+      /\s+([,.;:!?])/g,
+      "$1"
+    )
+    .replace(
+      /^(?:\.{3}|…)\s*/,
+      ""
+    )
+    .trim();
+}
+
+
+function truncateSearchText(
+  value:
+    string | null | undefined,
+  maxCharacters = 320
+) {
+  const cleaned =
+    cleanProviderText(
+      value
+    );
+
+
+  if (
+    cleaned.length
+    <= maxCharacters
+  ) {
+    return cleaned;
+  }
+
+
+  return (
+    cleaned
+      .slice(
+        0,
+        maxCharacters
+      )
+      .trimEnd()
+    + "…"
+  );
+}
+
+
+function getSearchRequirementPreview(
+  job: Job
+) {
+  const seen =
+    new Set<string>();
+
+
+  return job.requirements
+    .map(
+      (requirement) => ({
+        ...requirement,
+        displayText:
+          cleanProviderText(
+            requirement.text
+          ),
+      })
+    )
+    .filter(
+      (requirement) => {
+        const key =
+          requirement.displayText
+            .toLowerCase();
+
+        if (
+          !key
+          || seen.has(
+            key
+          )
+        ) {
+          return false;
+        }
+
+        seen.add(
+          key
+        );
+
+        return true;
+      }
+    )
+    .slice(
+      0,
+      5
+    );
+}
 
 
 function formatDateTime(
@@ -7675,21 +7896,15 @@ export default function DashboardClient({
 
 
                           {
-                            job.description
+                            cleanProviderText(
+                              job.description
+                            )
                             && (
                               <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
                                 {
-                                  job.description.length
-                                  > 320
-                                    ? (
-                                        job.description
-                                          .slice(
-                                            0,
-                                            320
-                                          )
-                                        + "…"
-                                      )
-                                    : job.description
+                                  truncateSearchText(
+                                    job.description
+                                  )
                                 }
                               </p>
                             )
@@ -7785,13 +8000,61 @@ export default function DashboardClient({
                       </div>
 
 
-                      <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-900">
-                        <p className="font-semibold">
-                          Search is for discovery. Analysis uses the original employer listing.
+                      <div className="mt-5 border-t border-slate-100 pt-4">
+                        <p className="text-sm font-semibold text-slate-900">
+                          Requirements detected
                         </p>
 
-                        <p className="mt-1 leading-6">
-                          Open the posting, follow it to the company&apos;s careers page where possible, then choose <strong>Analyse Job</strong> and paste that original employer URL into the analyser. If the page hides content behind &quot;View more&quot;, paste the full description as well.
+                        {
+                          getSearchRequirementPreview(
+                            job
+                          ).length
+                          > 0
+                            ? (
+                              <div className="mt-3 space-y-2">
+                                {
+                                  getSearchRequirementPreview(
+                                    job
+                                  ).map(
+                                    (requirement) => (
+                                      <div
+                                        key={
+                                          requirement.id
+                                        }
+                                        className="flex items-start gap-2 text-sm leading-6 text-slate-700"
+                                      >
+                                        <span className="mt-0.5 shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                          {
+                                            requirement.level
+                                            === "required"
+                                              ? "Required"
+                                              : requirement.level
+                                                === "preferred"
+                                                ? "Preferred"
+                                                : "Requirement"
+                                          }
+                                        </span>
+
+                                        <span>
+                                          {
+                                            requirement.displayText
+                                          }
+                                        </span>
+                                      </div>
+                                    )
+                                  )
+                                }
+                              </div>
+                            )
+                            : (
+                              <p className="mt-2 text-sm leading-6 text-slate-500">
+                                No clear requirements were included in the search provider&apos;s preview.
+                              </p>
+                            )
+                        }
+
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                          For the complete requirements and resume tailoring, open <strong>View Job Posting</strong> and use <strong>Analyse Job</strong> with the original employer listing.
                         </p>
                       </div>
 
