@@ -118,6 +118,12 @@ type ProfileFitGroupConcept = {
     | "candidate"
     | "gap"
     | null;
+
+  model_evidence?:
+    string | null;
+
+  model_confidence?:
+    number | null;
 };
 
 
@@ -430,6 +436,30 @@ type SearchResults = {
 
   jobs:
     Job[];
+};
+
+
+type ProviderJobAnalysisResponse = {
+  job_id: number;
+
+  analysis_method:
+    string;
+
+  requirements:
+    Requirement[];
+
+  profile_fit:
+    ProfileFit | null;
+};
+
+
+type ProviderAnalysisState = {
+  status:
+    | "loading"
+    | "ready"
+    | "error";
+
+  message?: string;
 };
 
 
@@ -2921,6 +2951,18 @@ export default function DashboardClient({
 
 
   const [
+    providerAnalysisStates,
+    setProviderAnalysisStates,
+  ] =
+    useState<
+      Record<
+        number,
+        ProviderAnalysisState
+      >
+    >({});
+
+
+  const [
     resumes,
     setResumes,
   ] =
@@ -3462,6 +3504,188 @@ export default function DashboardClient({
     setJobs(
       data.jobs
     );
+  }
+
+
+  async function analyzeProviderJob(
+    jobId: number
+  ) {
+    const existingState =
+      providerAnalysisStates[
+        jobId
+      ];
+
+
+    if (
+      existingState?.status
+      === "loading"
+      || existingState?.status
+      === "ready"
+    ) {
+      return;
+    }
+
+
+    setProviderAnalysisStates(
+      (current) => ({
+        ...current,
+
+        [jobId]: {
+          status:
+            "loading",
+        },
+      })
+    );
+
+
+    const token =
+      await getAccessToken();
+
+
+    if (!token) {
+      setProviderAnalysisStates(
+        (current) => ({
+          ...current,
+
+          [jobId]: {
+            status:
+              "error",
+
+            message:
+              "Your session has expired.",
+          },
+        })
+      );
+
+      return;
+    }
+
+
+    const apiUrl =
+      process.env
+        .NEXT_PUBLIC_API_URL;
+
+
+    try {
+      const response =
+        await fetch(
+          `${apiUrl}/api/search/jobs/${jobId}/analyze`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            cache:
+              "no-store",
+          }
+        );
+
+
+      if (!response.ok) {
+        let message =
+          "AI role analysis failed.";
+
+        try {
+          const errorBody =
+            await response.json();
+
+          if (
+            typeof errorBody
+              ?.detail
+            === "string"
+          ) {
+            message =
+              errorBody.detail;
+          }
+
+        } catch {
+          // Keep the generic message when the response is not JSON.
+        }
+
+        throw new Error(
+          message
+        );
+      }
+
+
+      const data:
+        ProviderJobAnalysisResponse =
+          await response.json();
+
+
+      setJobs(
+        (currentJobs) =>
+          currentJobs.map(
+            (job) => {
+              if (
+                job.job_id
+                !== jobId
+              ) {
+                return job;
+              }
+
+
+              return {
+                ...job,
+
+                requirements:
+                  data.requirements
+                    .length
+                  > 0
+                    ? data.requirements
+                    : job.requirements,
+
+                profile_fit:
+                  data.profile_fit
+                  ?? job.profile_fit,
+              };
+            }
+          )
+      );
+
+
+      setProviderAnalysisStates(
+        (current) => ({
+          ...current,
+
+          [jobId]: {
+            status:
+              "ready",
+
+            message:
+              data.profile_fit
+                ? "AI-refined skill extraction and resume evidence are loaded for this role."
+                : data.analysis_method
+                  .startsWith(
+                    "model_assisted"
+                  )
+                ? "AI-refined skill extraction is loaded. The existing resume comparison is retained."
+                : "The model was unavailable, so CareerCompass kept the fallback extraction for this role.",
+          },
+        })
+      );
+
+    } catch (err) {
+      setProviderAnalysisStates(
+        (current) => ({
+          ...current,
+
+          [jobId]: {
+            status:
+              "error",
+
+            message:
+              err instanceof Error
+                ? err.message
+                : "AI role analysis failed.",
+          },
+        })
+      );
+    }
   }
 
 
@@ -8445,7 +8669,21 @@ export default function DashboardClient({
                       }
 
 
-                      <details className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      <details
+                        className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+
+                        onToggle={(event) => {
+                          if (
+                            event
+                              .currentTarget
+                              .open
+                          ) {
+                            void analyzeProviderJob(
+                              job.job_id
+                            );
+                          }
+                        }}
+                      >
 
                         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#0A66C2] hover:bg-blue-50">
                           See role details & resume match
@@ -8453,6 +8691,72 @@ export default function DashboardClient({
 
 
                         <div className="border-t border-slate-200 bg-white p-4">
+
+
+                      {
+                        providerAnalysisStates[
+                          job.job_id
+                        ]
+                          ?.status
+                        === "loading"
+                        && (
+
+                          <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+                            <LoadingSpinner
+                              label="Analyzing this role with AI"
+                            />
+
+                            <span>
+                              Refining skills and comparing them with your resume...
+                            </span>
+                          </div>
+
+                        )
+                      }
+
+
+                      {
+                        providerAnalysisStates[
+                          job.job_id
+                        ]
+                          ?.status
+                        === "ready"
+                        && (
+
+                          <div className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800">
+                            {
+                              providerAnalysisStates[
+                                job.job_id
+                              ]
+                                ?.message
+                              ?? "AI-refined analysis is loaded for this role."
+                            }
+                          </div>
+
+                        )
+                      }
+
+
+                      {
+                        providerAnalysisStates[
+                          job.job_id
+                        ]
+                          ?.status
+                        === "error"
+                        && (
+
+                          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            {
+                              providerAnalysisStates[
+                                job.job_id
+                              ]
+                                ?.message
+                              ?? "AI role analysis failed. Showing the existing CareerCompass analysis instead."
+                            }
+                          </div>
+
+                        )
+                      }
 
 
                       {
@@ -8965,6 +9269,52 @@ export default function DashboardClient({
                                                           }
 
                                                         </div>
+
+
+                                                        {
+                                                          group
+                                                            .concepts
+                                                            .filter(
+                                                              (
+                                                                concept
+                                                              ) =>
+                                                                Boolean(
+                                                                  concept
+                                                                    .model_evidence
+                                                                )
+                                                            )
+                                                            .map(
+                                                              (
+                                                                concept
+                                                              ) => (
+
+                                                                <div
+                                                                  key={
+                                                                    "evidence-"
+                                                                    + concept
+                                                                        .concept_id
+                                                                  }
+
+                                                                  className="mt-3 rounded border border-emerald-100 bg-white p-3"
+                                                                >
+                                                                  <p className="text-xs font-semibold text-emerald-800">
+                                                                    Resume evidence for {
+                                                                      concept
+                                                                        .name
+                                                                    }
+                                                                  </p>
+
+                                                                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                                    “{
+                                                                      concept
+                                                                        .model_evidence
+                                                                    }”
+                                                                  </p>
+                                                                </div>
+
+                                                              )
+                                                            )
+                                                        }
 
                                                       </div>
 

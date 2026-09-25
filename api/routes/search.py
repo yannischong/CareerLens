@@ -1600,6 +1600,945 @@ def analyze_latest_search(
     }
 
 
+
+
+def _provider_analysis_text(job):
+    parts = []
+
+    description = (
+        job.get(
+            "description"
+        )
+        or ""
+    ).strip()
+
+    if description:
+        parts.append(
+            description
+        )
+
+    supplemental_fields = [
+        (
+            "Requirements",
+            job.get(
+                "requirements_text"
+            ),
+        ),
+        (
+            "Education requirements",
+            job.get(
+                "education_requirements"
+            ),
+        ),
+        (
+            "Experience requirements",
+            job.get(
+                "experience_requirements"
+            ),
+        ),
+    ]
+
+    normalized_description = (
+        description.casefold()
+    )
+
+    for heading, value in supplemental_fields:
+        value = str(
+            value
+            or ""
+        ).strip()
+
+        if not value:
+            continue
+
+        # Providers sometimes duplicate these fields inside the main
+        # description. Avoid needlessly sending identical text to the model.
+        if (
+            normalized_description
+            and value.casefold()
+            in normalized_description
+        ):
+            continue
+
+        parts.append(
+            f"{heading}\n{value}"
+        )
+
+    return "\n\n".join(
+        parts
+    ).strip()
+
+
+def _provider_level_rank(
+    level,
+):
+    return {
+        "unknown": 1,
+        "preferred": 2,
+        "required": 3,
+    }.get(
+        level,
+        0,
+    )
+
+
+def _provider_resume_status(
+    result,
+):
+    if not result:
+        return "needs_review"
+
+    status = result.get(
+        "status"
+    )
+
+    if status == "evidenced":
+        return "evidenced"
+
+    if status == "claimed_only":
+        return "claimed_only"
+
+    if status == "candidate":
+        return "candidate"
+
+    if status == "unsupported":
+        return "gap"
+
+    return "needs_review"
+
+
+def _provider_status_explanation(
+    status,
+):
+    if status == "evidenced":
+        return (
+            "CareerCompass found concrete resume evidence "
+            "supporting this skill."
+        )
+
+    if status == "claimed_only":
+        return (
+            "The skill is mentioned on your resume, but the "
+            "resume does not clearly demonstrate its use."
+        )
+
+    if status == "candidate":
+        return (
+            "Related resume evidence was found, but the exact "
+            "skill is only partially supported."
+        )
+
+    if status == "gap":
+        return (
+            "CareerCompass did not find supporting evidence for "
+            "this skill in your uploaded resume."
+        )
+
+    return (
+        "CareerCompass could not confidently determine resume "
+        "support for this skill."
+    )
+
+
+def _build_provider_profile_fit(
+    job_id,
+    skills,
+    model_results,
+):
+    if not skills or not model_results:
+        return None
+
+    concepts = []
+    groups = []
+
+    for skill in skills:
+        concept_id = skill[
+            "concept_id"
+        ]
+
+        model_result = (
+            model_results.get(
+                concept_id
+            )
+        )
+
+        status = (
+            _provider_resume_status(
+                model_result
+            )
+        )
+
+        evidence = (
+            model_result.get(
+                "evidence"
+            )
+            if model_result
+            else None
+        )
+
+        model_confidence = (
+            model_result.get(
+                "confidence"
+            )
+            if model_result
+            else None
+        )
+
+        if status == "evidenced":
+            claim_status = "confirmed"
+            evidence_status = "confirmed"
+
+        elif status == "claimed_only":
+            claim_status = "confirmed"
+            evidence_status = "not_confirmed"
+
+        elif status == "candidate":
+            claim_status = "candidate"
+            evidence_status = "candidate"
+
+        else:
+            claim_status = "not_confirmed"
+            evidence_status = "not_confirmed"
+
+        concept = {
+            "concept_id":
+                concept_id,
+
+            "name":
+                skill[
+                    "name"
+                ],
+
+            "type":
+                skill[
+                    "type"
+                ],
+
+            "level":
+                skill[
+                    "level"
+                ],
+
+            "fit_status":
+                status,
+
+            "claim_status":
+                claim_status,
+
+            "evidence_status":
+                evidence_status,
+
+            "model_evidence":
+                evidence,
+
+            "model_confidence":
+                model_confidence,
+        }
+
+        concepts.append(
+            concept
+        )
+
+        matched = status in {
+            "evidenced",
+            "claimed_only",
+            "candidate",
+        }
+
+        groups.append(
+            {
+                "requirement_mention_id":
+                    (
+                        int(job_id)
+                        * 100000
+                        + concept_id
+                    ),
+
+                "type":
+                    "skill",
+
+                "level":
+                    skill[
+                        "level"
+                    ],
+
+                "text":
+                    skill[
+                        "source_text"
+                    ],
+
+                "operator":
+                    "all_of",
+
+                "is_open":
+                    False,
+
+                "status":
+                    status,
+
+                "explanation":
+                    _provider_status_explanation(
+                        status
+                    ),
+
+                "matched_concept_id":
+                    (
+                        concept_id
+                        if matched
+                        else None
+                    ),
+
+                "matched_concept_name":
+                    (
+                        skill[
+                            "name"
+                        ]
+                        if matched
+                        else None
+                    ),
+
+                "concepts": [
+                    {
+                        "concept_id":
+                            concept_id,
+
+                        "name":
+                            skill[
+                                "name"
+                            ],
+
+                        "claim_status":
+                            claim_status,
+
+                        "evidence_status":
+                            evidence_status,
+
+                        "fit_status":
+                            status,
+
+                        "model_evidence":
+                            evidence,
+
+                        "model_confidence":
+                            model_confidence,
+                    }
+                ],
+            }
+        )
+
+    statuses = [
+        group[
+            "status"
+        ]
+        for group in groups
+    ]
+
+    required_groups = [
+        group
+        for group in groups
+        if group[
+            "level"
+        ] == "required"
+    ]
+
+    preferred_groups = [
+        group
+        for group in groups
+        if group[
+            "level"
+        ] == "preferred"
+    ]
+
+    unknown_groups = [
+        group
+        for group in groups
+        if group[
+            "level"
+        ] == "unknown"
+    ]
+
+    return {
+        "status":
+            "assessed",
+
+        "model_version":
+            "provider_model_v1",
+
+        "total_concepts":
+            len(concepts),
+
+        "required_concepts":
+            len(required_groups),
+
+        "preferred_concepts":
+            len(preferred_groups),
+
+        "unknown_level_concepts":
+            len(unknown_groups),
+
+        "evidenced":
+            statuses.count(
+                "evidenced"
+            ),
+
+        "claimed_only":
+            statuses.count(
+                "claimed_only"
+            ),
+
+        "candidate":
+            statuses.count(
+                "candidate"
+            ),
+
+        "gaps":
+            statuses.count(
+                "gap"
+            ),
+
+        "required_candidates":
+            sum(
+                1
+                for group in required_groups
+                if group[
+                    "status"
+                ] == "candidate"
+            ),
+
+        "required_gaps":
+            sum(
+                1
+                for group in required_groups
+                if group[
+                    "status"
+                ] == "gap"
+            ),
+
+        "total_groups":
+            len(groups),
+
+        "required_groups":
+            len(required_groups),
+
+        "preferred_groups":
+            len(preferred_groups),
+
+        "unknown_groups":
+            len(unknown_groups),
+
+        "group_evidenced":
+            statuses.count(
+                "evidenced"
+            ),
+
+        "group_claimed_only":
+            statuses.count(
+                "claimed_only"
+            ),
+
+        "group_candidate":
+            statuses.count(
+                "candidate"
+            ),
+
+        "group_gaps":
+            statuses.count(
+                "gap"
+            ),
+
+        "required_candidate_groups":
+            sum(
+                1
+                for group in required_groups
+                if group[
+                    "status"
+                ] == "candidate"
+            ),
+
+        "required_gap_groups":
+            sum(
+                1
+                for group in required_groups
+                if group[
+                    "status"
+                ] == "gap"
+            ),
+
+        "needs_review":
+            statuses.count(
+                "needs_review"
+            ),
+
+        "concepts":
+            concepts,
+
+        "groups":
+            groups,
+
+        "unresolved_requirements":
+            [],
+    }
+
+
+@router.post(
+    "/jobs/{job_id}/analyze"
+)
+def analyze_provider_job(
+    job_id: int,
+
+    profile: CurrentProfile = Depends(
+        get_current_profile
+    ),
+):
+    """Run model-assisted extraction only when a user opens a result.
+
+    Search discovery stays cheap. This endpoint performs the heavier model
+    extraction and resume verification for one provider-search job at a time.
+    Nothing is persisted, so the existing deterministic search pipeline remains
+    the fallback and the result can safely live only in the frontend session.
+    """
+
+    with engine.connect() as connection:
+        job = (
+            connection.execute(
+                text(
+                    """
+                    SELECT
+                        j.job_id,
+                        j.description,
+                        j.requirements_text,
+                        j.education_requirements,
+                        j.experience_requirements
+
+                    FROM jobs AS j
+
+                    WHERE
+                        j.job_id =
+                            :job_id
+
+                        AND EXISTS (
+                            SELECT 1
+
+                            FROM
+                                source_search_results AS ssres
+
+                            JOIN
+                                source_search_runs AS ssr
+
+                                ON
+                                    ssr.source_search_run_id =
+                                        ssres.source_search_run_id
+
+                            JOIN
+                                user_search_requests AS usr
+
+                                ON
+                                    usr.search_request_id =
+                                        ssr.search_request_id
+
+                            WHERE
+                                ssres.job_id =
+                                    j.job_id
+
+                                AND
+                                usr.profile_id =
+                                    :profile_id
+                        );
+                    """
+                ),
+                {
+                    "job_id":
+                        job_id,
+
+                    "profile_id":
+                        profile.profile_id,
+                },
+            )
+            .mappings()
+            .one_or_none()
+        )
+
+        resume_text = (
+            connection.execute(
+                text(
+                    """
+                    SELECT
+                        raw_text
+
+                    FROM
+                        resume_documents
+
+                    WHERE
+                        profile_id =
+                            :profile_id
+
+                    ORDER BY
+                        resume_id DESC
+
+                    LIMIT 1;
+                    """
+                ),
+                {
+                    "profile_id":
+                        profile.profile_id,
+                },
+            )
+            .scalar_one_or_none()
+        )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job result not found",
+        )
+
+    analysis_text = (
+        _provider_analysis_text(
+            job
+        )
+    )
+
+    if not analysis_text:
+        return {
+            "job_id":
+                job_id,
+
+            "analysis_method":
+                "insufficient_job_data",
+
+            "requirements":
+                [],
+
+            "profile_fit":
+                None,
+        }
+
+    try:
+        # Lazy imports keep the model path completely outside FastAPI startup.
+        from src.extraction.model_skill_extractor import (
+            enrich_manual_requirement_mentions,
+        )
+        from src.extraction.rules import (
+            extract_requirements,
+        )
+        from src.taxonomy.atomic import (
+            extract_atomic_concepts,
+        )
+
+        mentions = extract_requirements(
+            analysis_text,
+            source_field="description",
+        )
+
+        mentions = (
+            enrich_manual_requirement_mentions(
+                analysis_text,
+                mentions,
+                source_field="description",
+            )
+        )
+
+        model_skill_used = any(
+            bool(
+                (
+                    mention.structured_value
+                    or {}
+                ).get(
+                    "model_skill_processed"
+                )
+            )
+            for mention in mentions
+        )
+
+        requirements = []
+        skill_by_key = {}
+
+        for index, mention in enumerate(
+            mentions,
+            start=1,
+        ):
+            candidates = (
+                extract_atomic_concepts(
+                    mention.raw_text,
+                    mention.requirement_type,
+                    structured_value=(
+                        mention.structured_value
+                    ),
+                )
+            )
+
+            candidates = [
+                candidate
+                for candidate in candidates
+                if candidate.get(
+                    "concept_type"
+                )
+                in {
+                    "hard_skill",
+                    "soft_skill",
+                }
+            ]
+
+            if not candidates:
+                continue
+
+            requirement_concepts = []
+
+            for candidate in candidates:
+                normalized_key = (
+                    candidate.get(
+                        "normalized_key"
+                    )
+                    or ""
+                )
+
+                concept_type = (
+                    candidate.get(
+                        "concept_type"
+                    )
+                )
+
+                canonical_name = (
+                    candidate.get(
+                        "raw_text"
+                    )
+                    or normalized_key
+                )
+
+                try:
+                    confidence = float(
+                        candidate.get(
+                            "confidence",
+                            0.0,
+                        )
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    confidence = 0.0
+
+                if not normalized_key:
+                    continue
+
+                key = (
+                    concept_type,
+                    normalized_key,
+                )
+
+                existing = skill_by_key.get(
+                    key
+                )
+
+                skill = {
+                    "name":
+                        canonical_name,
+
+                    "type":
+                        concept_type,
+
+                    "level":
+                        mention.requirement_level,
+
+                    "confidence":
+                        confidence,
+
+                    "source_text":
+                        mention.raw_text,
+
+                    "section_type":
+                        (
+                            mention.structured_value
+                            or {}
+                        ).get(
+                            "section_type",
+                            "other",
+                        ),
+                }
+
+                if (
+                    existing is None
+                    or _provider_level_rank(
+                        skill[
+                            "level"
+                        ]
+                    )
+                    > _provider_level_rank(
+                        existing[
+                            "level"
+                        ]
+                    )
+                    or (
+                        _provider_level_rank(
+                            skill[
+                                "level"
+                            ]
+                        )
+                        == _provider_level_rank(
+                            existing[
+                                "level"
+                            ]
+                        )
+                        and skill[
+                            "confidence"
+                        ]
+                        > existing[
+                            "confidence"
+                        ]
+                    )
+                ):
+                    skill_by_key[
+                        key
+                    ] = skill
+
+                requirement_concepts.append(
+                    {
+                        "name":
+                            canonical_name,
+
+                        "type":
+                            concept_type,
+
+                        "confidence":
+                            confidence,
+                    }
+                )
+
+            if not requirement_concepts:
+                continue
+
+            requirements.append(
+                {
+                    "id":
+                        (
+                            int(job_id)
+                            * 100000
+                            + index
+                        ),
+
+                    "type":
+                        mention.requirement_type,
+
+                    "level":
+                        mention.requirement_level,
+
+                    "text":
+                        mention.raw_text,
+
+                    "structured_value":
+                        mention.structured_value,
+
+                    "concepts":
+                        requirement_concepts,
+                }
+            )
+
+        skills = list(
+            skill_by_key.values()
+        )
+
+        skills.sort(
+            key=lambda item: (
+                -_provider_level_rank(
+                    item[
+                        "level"
+                    ]
+                ),
+                item[
+                    "type"
+                ],
+                item[
+                    "name"
+                ].casefold(),
+            )
+        )
+
+        for concept_id, skill in enumerate(
+            skills,
+            start=1,
+        ):
+            skill[
+                "concept_id"
+            ] = concept_id
+
+        model_results = {}
+
+        if resume_text and skills:
+            from src.user_profile.model_resume_matcher import (
+                verify_resume_skills,
+            )
+
+            model_results = (
+                verify_resume_skills(
+                    resume_text,
+                    [
+                        {
+                            "concept_id":
+                                skill[
+                                    "concept_id"
+                                ],
+
+                            "name":
+                                skill[
+                                    "name"
+                                ],
+
+                            "type":
+                                skill[
+                                    "type"
+                                ],
+
+                            "requirement_level":
+                                skill[
+                                    "level"
+                                ],
+
+                            "fit_status":
+                                "gap",
+                        }
+                        for skill in skills
+                    ],
+                )
+            )
+
+        profile_fit = (
+            _build_provider_profile_fit(
+                job_id,
+                skills,
+                model_results,
+            )
+            if resume_text
+            else None
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "On-demand job analysis failed: "
+                + str(exc)[:300]
+            ),
+        ) from exc
+
+    return {
+        "job_id":
+            job_id,
+
+        "analysis_method":
+            (
+                "model_assisted_on_demand_v1"
+                if model_skill_used
+                else "rule_fallback_on_demand_v1"
+            ),
+
+        "requirements":
+            requirements,
+
+        "profile_fit":
+            profile_fit,
+    }
+
+
 @router.get(
     "/{search_request_id}/results"
 )
