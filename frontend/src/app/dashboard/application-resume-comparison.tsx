@@ -770,7 +770,7 @@ export function ApplicationResumeComparison({
 
           <div className="rounded-lg border border-emerald-100 bg-white p-3">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-              Eligibility & logistics
+              Eligibility
             </p>
             {logistics.length > 0 ? (
               <div className="mt-2 space-y-2">

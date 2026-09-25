@@ -99,6 +99,8 @@ type ManualJobImportResult = {
   job: ImportedJob;
   requirement_count: number;
   concept_link_count: number;
+  opportunity_id: number;
+  opportunity_created: boolean;
 };
 
 
@@ -907,39 +909,6 @@ export function ManualJobImport({
         data as ManualJobImportResult;
 
 
-      const saved =
-        await authenticatedPost(
-          "/api/opportunities",
-          {
-            job_id:
-              importResult
-                .job
-                .job_id,
-
-            source_search_request_id:
-              null,
-
-            priority:
-              "medium",
-
-            notes:
-              null,
-          }
-        );
-
-
-      if (!saved.response.ok) {
-        throw new Error(
-          typeof saved.data.detail
-          === "string"
-            ? saved.data.detail
-            : (
-              "CareerCompass imported the role but could not add it to My Applications."
-            )
-        );
-      }
-
-
       setImported(
         importResult
       );
@@ -975,6 +944,9 @@ export function ManualJobImport({
 
   async function handleAnalyze() {
     if (!imported) {
+      setError(
+        "Add this role to My Applications before comparing it with your resume."
+      );
       return;
     }
 
@@ -1464,7 +1436,7 @@ export function ManualJobImport({
 
                       <div className="rounded-lg border border-emerald-100 bg-white p-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                          Eligibility & logistics
+                          Eligibility
                         </p>
 
                         {
@@ -1581,94 +1553,60 @@ export function ManualJobImport({
                   </div>
 
 
-                  {
-                    !imported
-                    && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {!imported && (
                       <button
                         type="button"
-                        onClick={
-                          handleImport
-                        }
-                        disabled={
-                          importing
-                        }
-                        className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={handleImport}
+                        disabled={importing}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {
-                          importing
-                            && (
-                              <LoadingSpinner
-                                label="Adding role to My Applications"
-                              />
-                            )
-                        }
+                        {importing && (
+                          <LoadingSpinner
+                            label="Adding role to My Applications"
+                          />
+                        )}
 
-                        {
-                          importing
-                            ? "Adding..."
-                            : "Add to My Applications"
-                        }
+                        {importing
+                          ? "Adding..."
+                          : "Add to My Applications"}
                       </button>
-                    )
-                  }
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleAnalyze}
+                      disabled={analyzing || importing}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#0A66C2] bg-white px-5 py-2.5 text-sm font-bold text-[#0A66C2] transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {analyzing && (
+                        <LoadingSpinner
+                          label="Comparing with your resume"
+                        />
+                      )}
+
+                      {analyzing
+                        ? "Comparing..."
+                        : "Compare Resume"}
+                    </button>
+                  </div>
 
 
-                  {
-                    imported
-                    && (
-                      <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                  {imported && (
+                    <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                      <p className="font-semibold text-emerald-800">
+                        Added to My Applications
+                      </p>
 
-                        <p className="font-semibold text-emerald-800">
-                          Added to My Applications
-                        </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {imported.requirement_count}{" "}
+                        requirements and{" "}
+                        {imported.concept_link_count}{" "}
+                        requirement concepts were processed.
+                      </p>
+                    </div>
+                  )}
 
-
-                        <p className="mt-1 text-sm text-slate-600">
-                          {
-                            imported.requirement_count
-                          }{" "}
-                          requirements and{" "}
-                          {
-                            imported.concept_link_count
-                          }{" "}
-                          requirement concepts were processed.
-                        </p>
-
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-
-                          <button
-                            type="button"
-                            onClick={
-                              handleAnalyze
-                            }
-                            disabled={
-                              analyzing
-                            }
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {
-                              analyzing
-                                && (
-                                  <LoadingSpinner
-                                    label="Comparing with your resume"
-                                  />
-                                )
-                            }
-
-                            {
-                              analyzing
-                                ? "Comparing..."
-                                : "Compare With My Resume"
-                            }
-                          </button>
-
-
-                        </div>
-
-                      </div>
-                    )
-                  }
 
 
                   {

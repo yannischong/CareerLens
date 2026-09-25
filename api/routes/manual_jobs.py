@@ -636,15 +636,108 @@ def import_manual_listing(
             ),
         ) from exc
 
+    job_id = result[
+        "job"
+    ][
+        "job_id"
+    ]
+
     _save_listing_snapshot(
         profile.profile_id,
-        result[
-            "job"
-        ][
-            "job_id"
-        ],
+        job_id,
         listing,
     )
+
+    # Adding a manual listing and tracking it are one user action.
+    # Persist the opportunity here so a successful import can never be
+    # followed by a browser-side failure that leaves My Applications empty.
+    with engine.begin() as connection:
+        existing = (
+            connection.execute(
+                text(
+                    """
+                    SELECT opportunity_id
+                    FROM opportunities
+                    WHERE
+                        profile_id = :profile_id
+                        AND job_id = :job_id;
+                    """
+                ),
+                {
+                    "profile_id": profile.profile_id,
+                    "job_id": job_id,
+                },
+            )
+            .mappings()
+            .one_or_none()
+        )
+
+        if existing is None:
+            opportunity_id = connection.execute(
+                text(
+                    """
+                    INSERT INTO opportunities (
+                        profile_id,
+                        job_id,
+                        source_search_request_id,
+                        current_status,
+                        priority,
+                        notes
+                    )
+                    VALUES (
+                        :profile_id,
+                        :job_id,
+                        NULL,
+                        'saved',
+                        'medium',
+                        NULL
+                    )
+                    RETURNING opportunity_id;
+                    """
+                ),
+                {
+                    "profile_id": profile.profile_id,
+                    "job_id": job_id,
+                },
+            ).scalar_one()
+
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO opportunity_events (
+                        opportunity_id,
+                        event_type,
+                        from_status,
+                        to_status,
+                        event_source
+                    )
+                    VALUES (
+                        :opportunity_id,
+                        'created',
+                        NULL,
+                        'saved',
+                        'manual'
+                    );
+                    """
+                ),
+                {
+                    "opportunity_id": opportunity_id,
+                },
+            )
+
+            opportunity_created = True
+        else:
+            opportunity_id = existing[
+                "opportunity_id"
+            ]
+            opportunity_created = False
+
+    result[
+        "opportunity_id"
+    ] = opportunity_id
+    result[
+        "opportunity_created"
+    ] = opportunity_created
 
     return result
 
