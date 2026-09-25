@@ -11,9 +11,6 @@ from src.matching.assess_fit import (
     assess_group,
     get_direct_fit_status,
 )
-from src.user_profile.model_resume_matcher import (
-    verify_resume_concepts,
-)
 
 
 def _job_row(
@@ -1387,16 +1384,6 @@ def _public_group(
                     member[
                         "fit_status"
                     ],
-
-                "model_evidence":
-                    member.get(
-                        "model_match_evidence"
-                    ),
-
-                "model_confidence":
-                    member.get(
-                        "model_match_confidence"
-                    ),
             }
 
             for member
@@ -1407,160 +1394,10 @@ def _public_group(
     }
 
 
-def _apply_model_resume_matches(
-    concept_results,
-    group_results,
-    model_results,
-):
-    if not model_results:
-        return (
-            concept_results,
-            group_results,
-        )
-
-    by_id = {
-        item[
-            "concept_id"
-        ]:
-            item
-
-        for item in concept_results
-    }
-
-    for concept_id, model_result in (
-        model_results.items()
-    ):
-        result = by_id.get(
-            concept_id
-        )
-
-        if result is None:
-            continue
-
-        status = model_result.get(
-            "status"
-        )
-
-        confidence = float(
-            model_result.get(
-                "confidence",
-                0,
-            )
-            or 0
-        )
-
-        baseline = result.get(
-            "fit_status"
-        )
-
-        # Never downgrade an existing CareerLens match in this phase.
-        if baseline == "evidenced":
-            continue
-
-        if (
-            status == "evidenced"
-            and confidence >= 0.70
-        ):
-            result[
-                "evidence_status"
-            ] = "confirmed"
-
-            result[
-                "fit_status"
-            ] = "evidenced"
-
-        elif (
-            status == "claimed_only"
-            and confidence >= 0.72
-            and baseline
-            in {
-                "gap",
-                "candidate",
-                "claimed_only",
-            }
-        ):
-            result[
-                "claim_status"
-            ] = "confirmed"
-
-            result[
-                "fit_status"
-            ] = "claimed_only"
-
-        elif (
-            status == "candidate"
-            and confidence >= 0.65
-            and baseline == "gap"
-        ):
-            result[
-                "evidence_status"
-            ] = "candidate"
-
-            result[
-                "fit_status"
-            ] = "candidate"
-
-        else:
-            continue
-
-        result[
-            "model_match_evidence"
-        ] = model_result.get(
-            "evidence"
-        )
-
-        result[
-            "model_match_confidence"
-        ] = confidence
-
-    # Requirement groups were initially assessed from the baseline concept
-    # statuses. Refresh each member and rerun the logical group assessment.
-    for group in group_results:
-        for member in group[
-            "members"
-        ]:
-            updated = by_id.get(
-                member[
-                    "concept_id"
-                ]
-            )
-
-            if updated is None:
-                continue
-
-            for key in (
-                "claim_status",
-                "evidence_status",
-                "fit_status",
-                "model_match_evidence",
-                "model_match_confidence",
-            ):
-                if key in updated:
-                    member[
-                        key
-                    ] = updated[
-                        key
-                    ]
-
-        assessment = assess_group(
-            group
-        )
-
-        group.update(
-            assessment
-        )
-
-    return (
-        concept_results,
-        group_results,
-    )
-
-
 def assess_job_fit(
     profile_id,
     job_id,
     database_url=None,
-    use_model_resume_matching=False,
 ):
     engine = create_database_engine(
         database_url
@@ -1678,30 +1515,6 @@ def assess_job_fit(
         rows,
         profile_status,
     )
-
-
-    if use_model_resume_matching:
-        model_results = (
-            verify_resume_concepts(
-                profile_id=
-                    profile_id,
-
-                concepts=
-                    concept_results,
-
-                database_url=
-                    database_url,
-            )
-        )
-
-        (
-            concept_results,
-            group_results,
-        ) = _apply_model_resume_matches(
-            concept_results,
-            group_results,
-            model_results,
-        )
 
 
     summary = _summary_values(
