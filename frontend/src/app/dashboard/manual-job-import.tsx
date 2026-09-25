@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  useEffect,
   useState,
 } from "react";
 
@@ -199,27 +198,6 @@ type ManualJobAnalysis = {
     | UnavailableProfileFit;
 };
 
-
-type OpportunityResponse = {
-  created: boolean;
-  opportunity: {
-    opportunity_id:
-      number;
-    job_id:
-      number;
-    current_status:
-      string;
-  };
-};
-
-
-type SearchJobHandoff = {
-  title: string;
-  company: string;
-  location: string | null;
-  sourceUrl: string;
-  source: string;
-};
 
 
 type ManualJobImportProps = {
@@ -437,6 +415,130 @@ function collectSkillConcepts(
 }
 
 
+type DisplayLogisticalRequirement = {
+  text: string;
+  type: string;
+  level: string;
+};
+
+
+const LOGISTICAL_REQUIREMENT_TYPES =
+  new Set([
+    "education",
+    "experience",
+    "work_authorization",
+    "availability",
+    "certification",
+    "professional_registration",
+    "licence",
+    "language",
+    "security_clearance",
+    "physical_requirement",
+  ]);
+
+
+const LOGISTICAL_TEXT_PATTERN =
+  /\b(penultimate|final[- ]year|year\s*[1-6]|first[- ]year|second[- ]year|third[- ]year|fourth[- ]year|currently pursuing|pursuing a|expected graduation|graduat(?:e|ing|ion)|bachelor|master|degree|diploma|commit(?:ment)?|minimum\s+\d+\s+(?:months?|weeks?)|internship period|available for|full[- ]time|part[- ]time|start date|work authori[sz]ation|eligible to work|citizenship|visa sponsorship)\b/i;
+
+
+function collectLogisticalRequirements(
+  requirements:
+    ManualJobRequirement[]
+) {
+  const byKey = new Map<
+    string,
+    DisplayLogisticalRequirement
+  >();
+
+
+  requirements.forEach(
+    (requirement) => {
+      const text =
+        requirement.text.trim();
+
+      if (!text) {
+        return;
+      }
+
+      if (
+        !LOGISTICAL_REQUIREMENT_TYPES.has(
+          requirement.requirement_type
+        )
+        && !LOGISTICAL_TEXT_PATTERN.test(
+          text
+        )
+      ) {
+        return;
+      }
+
+      const key =
+        text
+          .toLowerCase()
+          .replace(/\s+/g, " ");
+
+      const level =
+        requirement.requirement_level
+        ?? "unknown";
+
+      const existing =
+        byKey.get(key);
+
+      if (
+        !existing
+        || requirementLevelRank(level)
+          > requirementLevelRank(
+              existing.level
+            )
+      ) {
+        byKey.set(
+          key,
+          {
+            text,
+            type:
+              requirement.requirement_type,
+            level,
+          }
+        );
+      }
+    }
+  );
+
+
+  return Array.from(
+    byKey.values()
+  );
+}
+
+
+function logisticalLabel(
+  type: string
+) {
+  if (type === "education") {
+    return "Education / study stage";
+  }
+
+  if (type === "availability") {
+    return "Commitment / availability";
+  }
+
+  if (type === "work_authorization") {
+    return "Work eligibility";
+  }
+
+  if (type === "experience") {
+    return "Experience";
+  }
+
+  return type
+    .replaceAll("_", " ")
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
+    );
+}
+
+
 export function ManualJobImport({
   onOpportunitySaved,
   onResumeUpload,
@@ -490,14 +592,6 @@ export function ManualJobImport({
 
 
   const [
-    saving,
-    setSaving,
-  ] = useState(
-    false
-  );
-
-
-  const [
     error,
     setError,
   ] = useState<
@@ -527,91 +621,6 @@ export function ManualJobImport({
   ] = useState<
     ManualJobAnalysis | null
   >(null);
-
-
-  const [
-    opportunity,
-    setOpportunity,
-  ] = useState<
-    OpportunityResponse | null
-  >(null);
-
-
-  const [
-    searchJobHandoff,
-    setSearchJobHandoff,
-  ] = useState<
-    SearchJobHandoff | null
-  >(null);
-
-
-  useEffect(() => {
-    function handleSearchJobHandoff(
-      event: Event
-    ) {
-      const detail = (
-        event as CustomEvent<
-          SearchJobHandoff
-        >
-      ).detail;
-
-
-      if (!detail) {
-        return;
-      }
-
-
-      setSearchJobHandoff(
-        detail
-      );
-
-      setUrl(
-        ""
-      );
-
-      setManualDescription(
-        ""
-      );
-
-      setShowDescriptionFallback(
-        false
-      );
-
-      setError(
-        null
-      );
-
-      setPreview(
-        null
-      );
-
-      setImported(
-        null
-      );
-
-      setAnalysis(
-        null
-      );
-
-      setOpportunity(
-        null
-      );
-    }
-
-
-    window.addEventListener(
-      "careerlens:analyse-search-job",
-      handleSearchJobHandoff
-    );
-
-
-    return () => {
-      window.removeEventListener(
-        "careerlens:analyse-search-job",
-        handleSearchJobHandoff
-      );
-    };
-  }, []);
 
 
   async function getAccessToken() {
@@ -713,9 +722,6 @@ export function ManualJobImport({
       null
     );
 
-    setOpportunity(
-      null
-    );
   }
 
 
@@ -878,7 +884,10 @@ export function ManualJobImport({
       } =
         await authenticatedPost(
           "/api/manual-jobs/import",
-          requestBody()
+          {
+            ...requestBody(),
+            preview,
+          }
         );
 
 
@@ -888,30 +897,72 @@ export function ManualJobImport({
           === "string"
             ? data.detail
             : (
-              "CareerCompass could not save this job listing."
+              "CareerCompass could not add this role to My Applications."
+            )
+        );
+      }
+
+
+      const importResult =
+        data as ManualJobImportResult;
+
+
+      const saved =
+        await authenticatedPost(
+          "/api/opportunities",
+          {
+            job_id:
+              importResult
+                .job
+                .job_id,
+
+            source_search_request_id:
+              null,
+
+            priority:
+              "medium",
+
+            notes:
+              null,
+          }
+        );
+
+
+      if (!saved.response.ok) {
+        throw new Error(
+          typeof saved.data.detail
+          === "string"
+            ? saved.data.detail
+            : (
+              "CareerCompass imported the role but could not add it to My Applications."
             )
         );
       }
 
 
       setImported(
-        data as ManualJobImportResult
+        importResult
       );
 
       setAnalysis(
         null
       );
 
-      setOpportunity(
-        null
-      );
+
+      if (onOpportunitySaved) {
+        try {
+          await onOpportunitySaved();
+        } catch {
+          // The role is already saved. A later dashboard refresh can recover.
+        }
+      }
 
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : (
-            "CareerCompass could not save this job listing."
+            "CareerCompass could not add this role to My Applications."
           )
       );
 
@@ -921,7 +972,6 @@ export function ManualJobImport({
       );
     }
   }
-
 
   async function handleAnalyze() {
     if (!imported) {
@@ -986,88 +1036,6 @@ export function ManualJobImport({
   }
 
 
-  async function handleSaveOpportunity() {
-    if (!imported) {
-      return;
-    }
-
-
-    setSaving(
-      true
-    );
-
-    setError(
-      null
-    );
-
-
-    try {
-      const {
-        response,
-        data,
-      } =
-        await authenticatedPost(
-          "/api/opportunities",
-          {
-            job_id:
-              imported
-                .job
-                .job_id,
-
-            source_search_request_id:
-              null,
-
-            priority:
-              "medium",
-
-            notes:
-              null,
-          }
-        );
-
-
-      if (!response.ok) {
-        throw new Error(
-          typeof data.detail
-          === "string"
-            ? data.detail
-            : (
-              "CareerCompass could not save this role to My Applications."
-            )
-        );
-      }
-
-
-      setOpportunity(
-        data as OpportunityResponse
-      );
-
-
-      if (onOpportunitySaved) {
-        try {
-          await onOpportunitySaved();
-        } catch {
-          // The role was saved successfully.
-          // A later dashboard refresh can
-          // recover if this UI refresh fails.
-        }
-      }
-
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : (
-            "CareerCompass could not save this role to My Applications."
-          )
-      );
-
-    } finally {
-      setSaving(
-        false
-      );
-    }
-  }
 
 
   const profileFit =
@@ -1114,6 +1082,14 @@ export function ManualJobImport({
     );
 
 
+  const logisticalRequirements =
+    preview
+      ? collectLogisticalRequirements(
+          preview.requirements
+        )
+      : [];
+
+
   const requiredSkills =
     extractedSkills.filter(
       (concept) =>
@@ -1155,7 +1131,7 @@ export function ManualJobImport({
 
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50/90">
-              Extract the key requirements from a job listing and compare them with your resume to identify strengths, gaps and tailoring opportunities.
+              Analyse a job listing to extract its key requirements and compare them with your resume.
             </p>
 
           </div>
@@ -1168,61 +1144,6 @@ export function ManualJobImport({
           </div>
 
 
-          {
-            searchJobHandoff
-            && (
-              <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 text-slate-800 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0A66C2]">
-                  Selected from job search
-                </p>
-
-                <p className="mt-1 font-bold">
-                  {searchJobHandoff.title}
-                </p>
-
-                <p className="text-sm text-slate-600">
-                  {searchJobHandoff.company}
-                  {
-                    searchJobHandoff.location
-                    ? ` · ${searchJobHandoff.location}`
-                    : ""
-                  }
-                </p>
-
-                <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                  <p className="font-semibold">
-                    For an accurate analysis:
-                  </p>
-
-                  <ol className="mt-2 list-decimal space-y-1 pl-5">
-                    <li>
-                      Open the source listing below.
-                    </li>
-                    <li>
-                      Follow it to the company&apos;s own careers page if available.
-                    </li>
-                    <li>
-                      Copy the original employer job URL into the field below.
-                    </li>
-                    <li>
-                      If the page uses &quot;View more&quot;, also paste the full description.
-                    </li>
-                  </ol>
-
-                  <a
-                    href={searchJobHandoff.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#0A66C2] hover:bg-blue-50"
-                  >
-                    Open source listing
-                  </a>
-                </div>
-              </div>
-            )
-          }
-
-
           <form
             onSubmit={
               handlePreview
@@ -1233,7 +1154,6 @@ export function ManualJobImport({
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
 
                 <input
-                  id="careercompass-manual-job-url"
                   type="url"
                   value={
                     url
@@ -1247,7 +1167,7 @@ export function ManualJobImport({
                       resetImportedState();
                     }
                   }
-                  placeholder="Paste the original employer job URL..."
+                  placeholder="https://company.com/careers/job..."
                   required
                   className="min-h-12 flex-1 rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                 />
@@ -1272,7 +1192,7 @@ export function ManualJobImport({
                   {
                     loading
                       ? "Reading listing..."
-                      : "Read Original Listing"
+                      : "Read Job Listing"
                   }
                 </button>
 
@@ -1292,9 +1212,6 @@ export function ManualJobImport({
 
               <button
                 type="button"
-                aria-expanded={
-                  showDescriptionFallback
-                }
                 onClick={() =>
                   setShowDescriptionFallback(
                     (
@@ -1303,7 +1220,7 @@ export function ManualJobImport({
                       !current
                   )
                 }
-                className="text-xs font-semibold text-blue-100 underline underline-offset-4 hover:text-white"
+                className="text-xs font-semibold text-blue-100 underline decoration-blue-100 underline-offset-4 hover:text-white"
               >
                 Click here to paste full job description for maximum accuracy
               </button>
@@ -1328,7 +1245,7 @@ export function ManualJobImport({
                     rows={
                       8
                     }
-                    placeholder="Paste the complete job description here, including requirements, responsibilities and preferred qualifications..."
+                    placeholder="Paste the full job description here..."
                     className="w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none ring-blue-300 placeholder:text-slate-400 focus:ring-2"
                   />
                 )
@@ -1447,27 +1364,27 @@ export function ManualJobImport({
 
                       <div>
                         <p className="text-sm font-bold text-slate-900">
-                          Extracted skills
+                          Extracted requirements
                         </p>
 
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          CareerCompass separates concrete hard skills from transferable soft skills and preserves how strongly the listing asks for them.
+                          CareerCompass separates technical skills, transferable skills and practical eligibility or commitment requirements.
                         </p>
                       </div>
 
 
                       <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
                         {
-                          extractedSkills.length
+                          preview.requirement_count
                         }{
-                          " skills"
+                          " requirements"
                         }
                       </span>
 
                     </div>
 
 
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
 
                       <div className="rounded-lg border border-blue-100 bg-white p-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-[#0A66C2]">
@@ -1539,6 +1456,56 @@ export function ManualJobImport({
                             : (
                               <p className="mt-2 text-xs text-slate-500">
                                 No soft skills were confidently identified.
+                              </p>
+                            )
+                        }
+                      </div>
+
+
+                      <div className="rounded-lg border border-emerald-100 bg-white p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                          Eligibility & logistics
+                        </p>
+
+                        {
+                          logisticalRequirements.length
+                          > 0
+                            ? (
+                              <div className="mt-2 space-y-2">
+                                {
+                                  logisticalRequirements.map(
+                                    (requirement) => (
+                                      <div
+                                        key={
+                                          "logistical-"
+                                          + requirement.type
+                                          + "-"
+                                          + requirement.text
+                                        }
+                                        className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2"
+                                      >
+                                        <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                          {
+                                            logisticalLabel(
+                                              requirement.type
+                                            )
+                                          }
+                                        </p>
+
+                                        <p className="mt-1 text-xs leading-5 text-slate-700">
+                                          {
+                                            requirement.text
+                                          }
+                                        </p>
+                                      </div>
+                                    )
+                                  )
+                                }
+                              </div>
+                            )
+                            : (
+                              <p className="mt-2 text-xs text-slate-500">
+                                No clear study-stage, commitment or eligibility requirements were identified.
                               </p>
                             )
                         }
@@ -1631,7 +1598,7 @@ export function ManualJobImport({
                           importing
                             && (
                               <LoadingSpinner
-                                label="Adding role to CareerCompass"
+                                label="Adding role to My Applications"
                               />
                             )
                         }
@@ -1639,7 +1606,7 @@ export function ManualJobImport({
                         {
                           importing
                             ? "Adding..."
-                            : "Add to CareerCompass"
+                            : "Add to My Applications"
                         }
                       </button>
                     )
@@ -1652,7 +1619,7 @@ export function ManualJobImport({
                       <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
 
                         <p className="font-semibold text-emerald-800">
-                          Role added to CareerCompass
+                          Added to My Applications
                         </p>
 
 
@@ -1696,40 +1663,6 @@ export function ManualJobImport({
                             }
                           </button>
 
-
-                          <button
-                            type="button"
-                            onClick={
-                              handleSaveOpportunity
-                            }
-                            disabled={
-                              saving
-                              || Boolean(
-                                opportunity
-                              )
-                            }
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {
-                              saving
-                              && !opportunity
-                              && (
-                                <LoadingSpinner
-                                  label="Saving to My Applications"
-                                />
-                              )
-                            }
-
-                            {
-                              opportunity
-                                ? "Saved to My Applications"
-                                : (
-                                  saving
-                                    ? "Saving..."
-                                    : "Save to My Applications"
-                                )
-                            }
-                          </button>
 
                         </div>
 

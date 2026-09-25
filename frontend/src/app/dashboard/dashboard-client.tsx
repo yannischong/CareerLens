@@ -2440,24 +2440,6 @@ export default function DashboardClient({
 
 
   const [
-    currentSearchRequestId,
-    setCurrentSearchRequestId,
-  ] =
-    useState<
-      number | null
-    >(null);
-
-
-  const [
-    trackingJobId,
-    setTrackingJobId,
-  ] =
-    useState<
-      number | null
-    >(null);
-
-
-  const [
     updatingOpportunityId,
     setUpdatingOpportunityId,
   ] =
@@ -2896,10 +2878,6 @@ export default function DashboardClient({
         await response.json();
 
 
-    setCurrentSearchRequestId(
-      data.search_request_id
-    );
-
 
     setJobs(
       data.jobs
@@ -2944,11 +2922,6 @@ export default function DashboardClient({
       SearchResults =
         await response.json();
 
-
-    setCurrentSearchRequestId(
-      data.search_request_id
-      ?? searchRequestId
-    );
 
 
     setJobs(
@@ -3432,136 +3405,6 @@ export default function DashboardClient({
   }
 
 
-  async function handleTrackJob(
-    jobId: number
-  ) {
-    setTrackingJobId(
-      jobId
-    );
-
-    setError(
-      null
-    );
-
-
-    const token =
-      await getAccessToken();
-
-
-    if (!token) {
-      setError(
-        "Your session has expired."
-      );
-
-      setTrackingJobId(
-        null
-      );
-
-      return;
-    }
-
-
-    const apiUrl =
-      process.env
-        .NEXT_PUBLIC_API_URL;
-
-
-    try {
-      const response =
-        await fetch(
-          `${apiUrl}/api/opportunities`,
-          {
-            method:
-              "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
-            },
-
-            body:
-              JSON.stringify({
-                job_id:
-                  jobId,
-
-                source_search_request_id:
-                  currentSearchRequestId,
-
-                priority:
-                  "medium",
-
-                notes:
-                  null,
-              }),
-          }
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (
-        !response.ok
-      ) {
-        throw new Error(
-          typeof data.detail
-            === "string"
-
-            ? data.detail
-
-            : (
-              "Failed to track "
-              + "opportunity"
-            )
-        );
-      }
-
-
-      await loadOpportunities(
-        token
-      );
-
-
-      await loadOpportunityAnalytics(
-        token
-      );
-
-
-      setEditingOpportunityId(
-        null
-      );
-
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : (
-            "Failed to track "
-            + "opportunity"
-          )
-      );
-
-    } finally {
-      setTrackingJobId(
-        null
-      );
-    }
-  }
-
-
-  function getTrackedOpportunity(
-    jobId: number
-  ) {
-    return opportunities.find(
-      (opportunity) =>
-        opportunity.job_id
-        === jobId
-    ) ?? null;
-  }
 
 
   async function toggleOpportunityHistory(
@@ -5408,7 +5251,7 @@ export default function DashboardClient({
 
           <div className="mt-5 rounded-lg border border-dashed p-4 text-sm text-gray-600">
             No applications saved yet.
-            Use the Save to My Applications button on a job result to add it here.
+            Use Analyse Job on a search result, then add the analysed role to My Applications.
           </div>
 
         )}
@@ -6393,6 +6236,9 @@ export default function DashboardClient({
                 <ApplicationResumeComparison
                   opportunityId={
                     opportunity.opportunity_id
+                  }
+                  jobId={
+                    opportunity.job_id
                   }
                 />
 
@@ -7914,62 +7760,6 @@ export default function DashboardClient({
 
 
                         <div className="flex h-fit flex-wrap gap-2 md:max-w-[360px] md:justify-end">
-
-                          {
-                            getTrackedOpportunity(
-                              job.job_id
-                            )
-                            ? (
-                              <button
-                                type="button"
-                                disabled
-                                className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
-                              >
-                                Saved · {
-                                  formatText(
-                                    getTrackedOpportunity(
-                                      job.job_id
-                                    )!
-                                      .current_status
-                                  )
-                                }
-                              </button>
-                            )
-                            : (
-                              <button
-                                type="button"
-                                onClick={
-                                  () =>
-                                    handleTrackJob(
-                                      job.job_id
-                                    )
-                                }
-                                disabled={
-                                  trackingJobId
-                                  === job.job_id
-                                }
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {
-                                  trackingJobId
-                                  === job.job_id
-                                  && (
-                                    <LoadingSpinner
-                                      label="Saving job to My Applications"
-                                    />
-                                  )
-                                }
-
-                                {
-                                  trackingJobId
-                                  === job.job_id
-                                    ? "Saving..."
-                                    : "Save / Track"
-                                }
-                              </button>
-                            )
-                          }
-
 
                           <a
                             href={
