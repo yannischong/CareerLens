@@ -451,6 +451,15 @@ type Job = {
 
   full_posting_retrieved?:
     boolean;
+
+  original_source_url?:
+    string | null;
+
+  original_source_host?:
+    string | null;
+
+  source_resolution_method?:
+    string | null;
 };
 
 
@@ -508,6 +517,15 @@ type ProviderJobAnalysisResponse = {
 
   full_posting_retrieved:
     boolean;
+
+  original_source_url:
+    string | null;
+
+  original_source_host:
+    string | null;
+
+  source_resolution_method:
+    string | null;
 };
 
 
@@ -3770,6 +3788,18 @@ export default function DashboardClient({
                 full_posting_retrieved:
                   data
                     .full_posting_retrieved,
+
+                original_source_url:
+                  data
+                    .original_source_url,
+
+                original_source_host:
+                  data
+                    .original_source_host,
+
+                source_resolution_method:
+                  data
+                    .source_resolution_method,
               };
             }
           )
@@ -9051,6 +9081,26 @@ export default function DashboardClient({
                                           : "The provider supplied a sufficiently detailed description for analysis."
                               }
                             </div>
+
+                            {
+                              job
+                                .original_source_host
+                              && (
+                                <div className="mt-2 text-xs font-medium opacity-80">
+                                  Original source: {
+                                    job
+                                      .original_source_host
+                                  }
+                                  {
+                                    job
+                                      .source_resolution_method
+                                    === "serpapi_official_search"
+                                      ? " · matched from the employer/ATS listing"
+                                      : ""
+                                  }
+                                </div>
+                              )
+                            }
                           </div>
 
                         )

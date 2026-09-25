@@ -9,6 +9,15 @@ from urllib.parse import urljoin, urlparse
 import httpx
 
 
+from src.services.original_job_source_resolver import (
+    cached_original_source,
+    discover_outbound_source_urls,
+    host_for_url,
+    is_aggregator_url,
+    search_official_job_candidates,
+)
+
+
 FETCH_TIMEOUT_SECONDS = 8.0
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_REDIRECTS = 5
@@ -1007,6 +1016,10 @@ def _candidate_urls(job):
 
     metadata = _metadata_dict(job)
 
+    resolved = cached_original_source(job)
+    if resolved is not None:
+        add(resolved.get("url"))
+
     for option in metadata.get("apply_options") or []:
         if isinstance(option, dict):
             add(option.get("link"))
@@ -1031,7 +1044,11 @@ def _candidate_urls(job):
 
 
 def _discover_page_urls(html_text, base_url):
-    """Find likely employer/ATS destinations exposed by aggregator pages."""
+    """Find likely employer/ATS destinations exposed by aggregator pages.
+
+    Phase 4C also unwraps Jooble/tracking URLs and recognises data-href,
+    form-action and JavaScript-embedded destinations.
+    """
 
     discovered = []
 
@@ -1077,13 +1094,18 @@ def _discover_page_urls(html_text, base_url):
             add(match.group(1), "canonical")
 
     for match in re.finditer(
-        r"https?:\?/\?/[^\"'<>\s]+",
+        r"https?:\\?/\\?/[^\"'<>\s]+",
         html_text or "",
         re.IGNORECASE,
     ):
         raw = match.group(0).replace("\\/", "/")
         if _detect_ats(raw):
             add(raw, "ats embedded url")
+
+    # Dedicated resolver catches encoded Jooble redirect targets, data-href
+    # attributes and other application links that the generic parser misses.
+    for item in discover_outbound_source_urls(html_text or "", base_url):
+        add(item.get("url"), "jooble outbound apply link")
 
     def score(item):
         url, context = item
@@ -1095,9 +1117,11 @@ def _discover_page_urls(html_text, base_url):
             for token in (
                 "apply",
                 "view job",
+                "view original",
                 "job posting",
                 "career",
                 "position",
+                "company website",
             )
         )
         return (
@@ -1105,7 +1129,8 @@ def _discover_page_urls(html_text, base_url):
             len(url),
         )
 
-    return [url for url, _ in sorted(discovered, key=score)[:8]]
+    return [url for url, _ in sorted(discovered, key=score)[:12]]
+
 
 def _select_page_text(html_text, provider_text):
     parser = _PostingHTMLParser()
@@ -1177,12 +1202,14 @@ def _merge_provider_supplements(full_text, job):
 def enrich_provider_job_description(job, provider_text):
     """Return the richest safe job description available for one provider job.
 
-    Phase 4B reliability order:
-    1. Merge structured provider fields (including Google Jobs highlights).
-    2. Try direct ATS endpoints.
-    3. Fetch the supplied page and inspect the final redirect destination.
-    4. Follow a small number of likely employer/ATS outbound links.
-    5. Fall back to provider data without failing the analysis request.
+    Original-source resolution order:
+    1. Reuse a previously resolved employer/ATS URL from source_metadata.
+    2. Merge structured provider fields.
+    3. Try provider-supplied external/ATS links.
+    4. For Jooble, unwrap outbound Apply/View-original destinations.
+    5. If Jooble exposes no usable destination, run one exact SerpAPI web
+       lookup for title + company + location and validate the resulting page.
+    6. Fall back to provider data without failing the analysis request.
     """
 
     original_provider_text = str(provider_text or "").strip()
@@ -1201,34 +1228,113 @@ def enrich_provider_job_description(job, provider_text):
         )
     )
 
-    if (
-        len(provider_text) >= 1200
-        and has_structured_sections
-    ):
+    if len(provider_text) >= 1200 and has_structured_sections:
         base_completeness = "likely_full"
         base_source = "provider_structured"
     elif description_type == "snippet" or len(provider_text) < 700:
         base_completeness = "partial"
-        base_source = "provider_structured" if provider_text != original_provider_text else "provider"
+        base_source = (
+            "provider_structured"
+            if provider_text != original_provider_text
+            else "provider"
+        )
     else:
         base_completeness = "likely_full"
-        base_source = "provider_structured" if provider_text != original_provider_text else "provider"
+        base_source = (
+            "provider_structured"
+            if provider_text != original_provider_text
+            else "provider"
+        )
 
     result = {
         "analysis_text": provider_text,
         "description_source": base_source,
         "description_completeness": base_completeness,
         "source_url": None,
+        "original_source_url": None,
+        "original_source_host": None,
+        "source_resolution_method": None,
+        "source_resolution_confidence": None,
         "provider_characters": len(provider_text),
         "analysis_characters": len(provider_text),
         "full_posting_retrieved": False,
         "fetch_attempted": False,
+        "official_source_search_attempted": False,
     }
 
     attempted = set()
+    source_search_candidates = 0
 
-    def apply_text(source, page_text, final_url, force_full=False):
+    title_tokens = {
+        token
+        for token in re.findall(
+            r"[a-z0-9]+",
+            str(job.get("raw_title") or "").casefold(),
+        )
+        if len(token) >= 2
+        and token not in {"the", "and", "for", "with", "job", "role"}
+    }
+
+    company_tokens = {
+        token
+        for token in re.findall(
+            r"[a-z0-9]+",
+            str(job.get("raw_company_name") or "").casefold(),
+        )
+        if len(token) >= 2
+        and token not in {"pte", "ltd", "limited", "inc", "the", "and"}
+    }
+
+    def identity_match(page_text, final_url):
+        """Strict enough to avoid analysing a similarly named different job."""
+
+        evidence = (
+            str(page_text or "")
+            + " "
+            + host_for_url(final_url).replace(".", " ")
+        ).casefold()
+        evidence_tokens = set(re.findall(r"[a-z0-9]+", evidence))
+
+        title_score = (
+            len(title_tokens & evidence_tokens) / len(title_tokens)
+            if title_tokens
+            else 0.0
+        )
+        company_score = (
+            len(company_tokens & evidence_tokens) / len(company_tokens)
+            if company_tokens
+            else 0.0
+        )
+
+        title_text = re.sub(
+            r"\s+",
+            " ",
+            str(job.get("raw_title") or "").casefold(),
+        ).strip()
+        exact_title = bool(title_text) and title_text in re.sub(r"\s+", " ", evidence)
+
+        return (
+            (exact_title or title_score >= 0.55)
+            and (
+                company_score >= 0.34
+                or _detect_ats(final_url) is not None
+            )
+        )
+
+    def apply_text(
+        source,
+        page_text,
+        final_url,
+        *,
+        force_full=False,
+        resolution_method=None,
+        resolution_confidence=None,
+        require_identity=False,
+    ):
         enriched_text = _merge_provider_supplements(page_text, job)
+
+        if require_identity and not identity_match(enriched_text, final_url):
+            return False
 
         if len(enriched_text) <= len(result["analysis_text"]):
             return False
@@ -1236,10 +1342,7 @@ def enrich_provider_job_description(job, provider_text):
         ratio = len(enriched_text) / max(len(provider_text), 1)
 
         if force_full or (
-            source in {
-                "employer_jsonld",
-                "employer_hydration",
-            }
+            source in {"employer_jsonld", "employer_hydration"}
             and len(enriched_text) >= 800
         ):
             completeness = "full"
@@ -1248,19 +1351,33 @@ def enrich_provider_job_description(job, provider_text):
         else:
             completeness = "partial"
 
+        final_host = host_for_url(final_url)
+        is_original = bool(final_url) and not is_aggregator_url(final_url)
+
         result.update(
             {
                 "analysis_text": enriched_text,
                 "description_source": source,
                 "description_completeness": completeness,
                 "source_url": final_url,
+                "original_source_url": final_url if is_original else None,
+                "original_source_host": final_host if is_original else None,
+                "source_resolution_method": resolution_method,
+                "source_resolution_confidence": resolution_confidence,
                 "analysis_characters": len(enriched_text),
                 "full_posting_retrieved": completeness in {"full", "likely_full"},
             }
         )
         return True
 
-    def try_one(url, allow_outbound=True):
+    def try_one(
+        url,
+        *,
+        allow_outbound=True,
+        resolution_method=None,
+        resolution_confidence=None,
+        require_identity=False,
+    ):
         url = str(url or "").strip()
         if not url or url in attempted:
             return False
@@ -1275,7 +1392,15 @@ def enrich_provider_job_description(job, provider_text):
 
         if ats_result is not None:
             source, page_text, final_url = ats_result
-            if apply_text(source, page_text, final_url, force_full=True):
+            if apply_text(
+                source,
+                page_text,
+                final_url,
+                force_full=True,
+                resolution_method=resolution_method,
+                resolution_confidence=resolution_confidence,
+                require_identity=require_identity,
+            ):
                 return True
 
         try:
@@ -1283,9 +1408,6 @@ def enrich_provider_job_description(job, provider_text):
         except Exception:
             return False
 
-        # Aggregators such as Jooble can redirect to the actual employer/ATS
-        # posting. Re-run ATS detection on the final URL, not only the original
-        # provider URL.
         if final_url and final_url != url:
             try:
                 redirected_ats = _fetch_ats_posting(final_url)
@@ -1294,31 +1416,132 @@ def enrich_provider_job_description(job, provider_text):
 
             if redirected_ats is not None:
                 source, page_text, ats_url = redirected_ats
-                if apply_text(source, page_text, ats_url, force_full=True):
+                if apply_text(
+                    source,
+                    page_text,
+                    ats_url,
+                    force_full=True,
+                    resolution_method=resolution_method or "provider_redirect",
+                    resolution_confidence=resolution_confidence or 0.95,
+                    require_identity=require_identity,
+                ):
                     return True
 
         selected = _select_page_text(html_text, provider_text)
         if selected is not None:
             source, page_text = selected
-            if apply_text(source, page_text, final_url):
+            if apply_text(
+                source,
+                page_text,
+                final_url,
+                resolution_method=resolution_method,
+                resolution_confidence=resolution_confidence,
+                require_identity=require_identity,
+            ):
                 return True
 
         if not allow_outbound:
             return False
 
-        # When an aggregator renders a shell rather than redirecting, inspect a
-        # small number of likely Apply/View-job links and try the actual target.
-        for outbound in _discover_page_urls(html_text, final_url or url)[:4]:
-            if try_one(outbound, allow_outbound=False):
+        parent_is_jooble = "jooble" in host_for_url(final_url or url)
+
+        outbound_candidates = discover_outbound_source_urls(
+            html_text,
+            final_url or url,
+        )
+
+        # Preserve generic outbound discovery too, because some employer pages
+        # expose canonical/apply links in forms not specific to Jooble.
+        generic_outbound = _discover_page_urls(html_text, final_url or url)
+        seen_outbound = {
+            item.get("url")
+            for item in outbound_candidates
+            if item.get("url")
+        }
+        for outbound in generic_outbound:
+            if outbound not in seen_outbound:
+                outbound_candidates.append(
+                    {
+                        "url": outbound,
+                        "method": (
+                            "jooble_outbound"
+                            if parent_is_jooble
+                            else "provider_outbound"
+                        ),
+                        "confidence": 0.90,
+                    }
+                )
+
+        for outbound in outbound_candidates[:6]:
+            if try_one(
+                outbound.get("url"),
+                allow_outbound=False,
+                resolution_method=outbound.get("method") or (
+                    "jooble_outbound" if parent_is_jooble else "provider_outbound"
+                ),
+                resolution_confidence=outbound.get("confidence") or 0.90,
+                require_identity=parent_is_jooble,
+            ):
                 return True
 
         return False
 
     candidates = _candidate_urls(job)
+    cached = cached_original_source(job)
+    cached_url = cached.get("url") if cached else None
 
     for url in candidates:
-        if try_one(url):
+        host = host_for_url(url)
+        if cached_url and url == cached_url:
+            method = "cached_original_source"
+            confidence = cached.get("confidence") or 1.0
+            require_identity = True
+        elif "jooble" in host:
+            method = "jooble_page"
+            confidence = 0.80
+            require_identity = False
+        elif _detect_ats(url):
+            method = "provider_ats_link"
+            confidence = 0.98
+            require_identity = False
+        elif not is_aggregator_url(url):
+            method = "provider_external_link"
+            confidence = 0.92
+            require_identity = False
+        else:
+            method = "provider_link"
+            confidence = 0.75
+            require_identity = False
+
+        if try_one(
+            url,
+            resolution_method=method,
+            resolution_confidence=confidence,
+            require_identity=require_identity,
+        ):
             break
+
+    # Jooble's API frequently gives only its own page + a snippet. If neither
+    # the API metadata nor the Jooble page exposes the original destination,
+    # use one exact web lookup to locate the employer/ATS copy. This happens
+    # only when the user opens that job, never while browsing search results.
+    if (
+        not result["full_posting_retrieved"]
+        and str(job.get("source") or "").casefold() == "jooble"
+    ):
+        result["official_source_search_attempted"] = True
+        official_candidates = search_official_job_candidates(job)
+        source_search_candidates = len(official_candidates)
+
+        for candidate in official_candidates:
+            if try_one(
+                candidate.get("url"),
+                allow_outbound=False,
+                resolution_method=candidate.get("method") or "serpapi_official_search",
+                resolution_confidence=candidate.get("confidence"),
+                require_identity=True,
+            ):
+                break
 
     print(
         "[CareerLens provider enrichment] "
@@ -1326,6 +1549,9 @@ def enrich_provider_job_description(job, provider_text):
         f"source={job.get('source')} "
         f"candidate_urls={len(candidates)} "
         f"attempted_urls={len(attempted)} "
+        f"official_search_candidates={source_search_candidates} "
+        f"resolution={result['source_resolution_method']} "
+        f"original_host={result['original_source_host']} "
         f"description_source={result['description_source']} "
         f"completeness={result['description_completeness']} "
         f"chars={result['provider_characters']}->{result['analysis_characters']}",

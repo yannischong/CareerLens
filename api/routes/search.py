@@ -2766,6 +2766,7 @@ def analyze_provider_job(
                         j.job_id,
                         j.raw_title,
                         j.raw_company_name,
+                        j.location_raw,
                         j.source,
                         j.source_job_id,
                         j.job_url,
@@ -2938,7 +2939,101 @@ def analyze_provider_job(
                     "full_posting_retrieved"
                 )
             ),
+
+        "original_source_url":
+            enrichment.get(
+                "original_source_url"
+            ),
+
+        "original_source_host":
+            enrichment.get(
+                "original_source_host"
+            ),
+
+        "source_resolution_method":
+            enrichment.get(
+                "source_resolution_method"
+            ),
+
+        "source_resolution_confidence":
+            enrichment.get(
+                "source_resolution_confidence"
+            ),
     }
+
+    # Persist a successfully resolved employer/ATS destination inside the
+    # existing jobs.source_metadata JSONB. This avoids repeating the Jooble
+    # outbound/SerpAPI source-resolution lookup on future opens.
+    resolved_source_url = source_metadata.get(
+        "original_source_url"
+    )
+
+    if (
+        resolved_source_url
+        and source_metadata.get(
+            "full_posting_retrieved"
+        )
+    ):
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE jobs
+
+                        SET source_metadata =
+                            COALESCE(
+                                source_metadata,
+                                '{}'::jsonb
+                            )
+                            || jsonb_build_object(
+                                'resolved_source_url',
+                                CAST(:resolved_source_url AS text),
+                                'resolved_source_method',
+                                CAST(:resolved_source_method AS text),
+                                'resolved_source_host',
+                                CAST(:resolved_source_host AS text),
+                                'resolved_source_confidence',
+                                CAST(:resolved_source_confidence AS numeric),
+                                'resolved_source_at',
+                                to_jsonb(NOW())
+                            )
+
+                        WHERE job_id = :job_id;
+                        """
+                    ),
+                    {
+                        "resolved_source_url":
+                            resolved_source_url,
+
+                        "resolved_source_method":
+                            source_metadata.get(
+                                "source_resolution_method"
+                            )
+                            or "resolved_original_source",
+
+                        "resolved_source_host":
+                            source_metadata.get(
+                                "original_source_host"
+                            )
+                            or "",
+
+                        "resolved_source_confidence":
+                            source_metadata.get(
+                                "source_resolution_confidence"
+                            )
+                            or 1.0,
+
+                        "job_id":
+                            job_id,
+                    },
+                )
+        except Exception as exc:
+            print(
+                "[CareerLens source resolver] "
+                f"could not persist resolved source for job {job_id}: {exc}",
+                flush=True,
+            )
 
     if not analysis_text:
         return {
