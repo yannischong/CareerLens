@@ -433,6 +433,24 @@ type Job = {
 
   analysis_method:
     string | null;
+
+  description_source?:
+    string | null;
+
+  description_completeness?:
+    "full"
+    | "likely_full"
+    | "partial"
+    | null;
+
+  provider_description_characters?:
+    number | null;
+
+  analysis_description_characters?:
+    number | null;
+
+  full_posting_retrieved?:
+    boolean;
 };
 
 
@@ -467,6 +485,23 @@ type ProviderJobAnalysisResponse = {
     "none"
     | "job"
     | "profile";
+
+  description_source:
+    string;
+
+  description_completeness:
+    "full"
+    | "likely_full"
+    | "partial";
+
+  provider_description_characters:
+    number;
+
+  analysis_description_characters:
+    number;
+
+  full_posting_retrieved:
+    boolean;
 };
 
 
@@ -3702,6 +3737,26 @@ export default function DashboardClient({
                 analysis_method:
                   data
                     .analysis_method,
+
+                description_source:
+                  data
+                    .description_source,
+
+                description_completeness:
+                  data
+                    .description_completeness,
+
+                provider_description_characters:
+                  data
+                    .provider_description_characters,
+
+                analysis_description_characters:
+                  data
+                    .analysis_description_characters,
+
+                full_posting_retrieved:
+                  data
+                    .full_posting_retrieved,
               };
             }
           )
@@ -8909,6 +8964,64 @@ export default function DashboardClient({
                                 ?.message
                               ?? "AI role analysis failed. Showing the existing CareerCompass analysis instead."
                             }
+                          </div>
+
+                        )
+                      }
+
+
+                      {
+                        providerAnalysisStates[
+                          job.job_id
+                        ]
+                          ?.status
+                        === "ready"
+                        && job
+                          .description_completeness
+                        && (
+
+                          <div
+                            className={`mb-4 rounded-lg border p-3 text-sm ${
+                              job
+                                .description_completeness
+                              === "partial"
+                                ? "border-amber-200 bg-amber-50 text-amber-800"
+                                : "border-sky-100 bg-sky-50 text-sky-800"
+                            }`}
+                          >
+                            <div className="font-semibold">
+                              {
+                                job
+                                  .description_completeness
+                                === "full"
+                                  ? "Full job posting retrieved"
+                                  : job
+                                    .description_completeness
+                                  === "likely_full"
+                                    ? "Likely full job posting retrieved"
+                                    : "Partial job information available"
+                              }
+                            </div>
+
+                            <div className="mt-1">
+                              {
+                                job
+                                  .description_completeness
+                                === "partial"
+                                  ? "CareerLens could not retrieve a complete source posting, so some requirements may still be missing."
+                                  : job
+                                    .description_source
+                                  === "employer_jsonld"
+                                    ? "CareerLens analysed the structured job posting supplied by the employer page."
+                                    : job
+                                      .description_source
+                                      ?.startsWith(
+                                        "employer"
+                                      )
+                                      ? "CareerLens analysed the expanded content retrieved from the employer page."
+                                      : "The provider supplied a sufficiently detailed description for analysis."
+                              }
+                            </div>
                           </div>
 
                         )

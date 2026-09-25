@@ -47,6 +47,9 @@ from src.ranking.rank_search import (
 from src.services.job_search_service import (
     run_job_search,
 )
+from src.services.job_posting_enrichment_service import (
+    enrich_provider_job_description,
+)
 from src.services.search_quota_service import (
     get_search_quota,
     reserve_search_slot,
@@ -352,15 +355,20 @@ def _provider_match_percentage(
 
 def _provider_job_content_hash(
     job,
+    analysis_text=None,
 ):
-    analysis_text = (
-        _provider_analysis_text(
-            job
+    if analysis_text is None:
+        analysis_text = (
+            _provider_analysis_text(
+                job
+            )
         )
-    )
 
     return hashlib.sha256(
-        analysis_text.encode(
+        str(
+            analysis_text
+            or ""
+        ).encode(
             "utf-8"
         )
     ).hexdigest()
@@ -402,15 +410,15 @@ def _latest_resume_id(
 def _provider_result_sort_key(
     job,
 ):
-    match_percentage = (
-        job.get(
-            "resume_match_percentage"
-        )
-    )
-
     search_relevance = (
         job.get(
             "search_relevance"
+        )
+    )
+
+    relevance_rank = (
+        job.get(
+            "relevance_rank"
         )
     )
 
@@ -420,25 +428,24 @@ def _provider_result_sort_key(
         )
     )
 
+    # CareerLens ranks provider results by how relevant they are to the user's
+    # search. Resume match is intentionally informational only: its purpose is
+    # to show what the user may want to tailor, not to hide relevant jobs.
     return (
         1
-        if job.get(
-            "insufficient_description"
-        )
+        if search_relevance is None
         else 0,
-
-        1
-        if match_percentage is None
-        else 0,
-
-        -float(
-            match_percentage
-            or 0
-        ),
 
         -float(
             search_relevance
             or 0
+        ),
+
+        int(
+            relevance_rank
+            if relevance_rank
+            is not None
+            else 1_000_000
         ),
 
         int(
@@ -2743,6 +2750,11 @@ def analyze_provider_job(
                     """
                     SELECT
                         j.job_id,
+                        j.raw_title,
+                        j.raw_company_name,
+                        j.source,
+                        j.job_url,
+                        j.source_metadata,
                         j.description,
                         j.requirements_text,
                         j.education_requirements,
@@ -2832,11 +2844,58 @@ def analyze_provider_job(
             detail="Job result not found",
         )
 
-    analysis_text = (
+    provider_text = (
         _provider_analysis_text(
             job
         )
     )
+
+    enrichment = (
+        enrich_provider_job_description(
+            dict(job),
+            provider_text,
+        )
+    )
+
+    analysis_text = (
+        enrichment.get(
+            "analysis_text"
+        )
+        or provider_text
+    )
+
+    source_metadata = {
+        "description_source":
+            enrichment.get(
+                "description_source",
+                "provider",
+            ),
+
+        "description_completeness":
+            enrichment.get(
+                "description_completeness",
+                "partial",
+            ),
+
+        "provider_description_characters":
+            enrichment.get(
+                "provider_characters",
+                len(provider_text),
+            ),
+
+        "analysis_description_characters":
+            enrichment.get(
+                "analysis_characters",
+                len(analysis_text),
+            ),
+
+        "full_posting_retrieved":
+            bool(
+                enrichment.get(
+                    "full_posting_retrieved"
+                )
+            ),
+    }
 
     if not analysis_text:
         return {
@@ -2857,11 +2916,14 @@ def analyze_provider_job(
 
             "cache_hit":
                 "none",
+
+            **source_metadata,
         }
 
     job_hash = (
         _provider_job_content_hash(
-            job
+            job,
+            analysis_text=analysis_text,
         )
     )
 
@@ -2925,6 +2987,10 @@ def analyze_provider_job(
                 if cached_percentage
                 is not None
                 else None
+            )
+
+            payload.update(
+                source_metadata
             )
 
             return payload
@@ -3091,6 +3157,8 @@ def analyze_provider_job(
                 if job_cache_hit
                 else "none"
             ),
+
+        **source_metadata,
     }
 
     if (
