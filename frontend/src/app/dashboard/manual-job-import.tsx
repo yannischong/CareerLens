@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  useEffect,
   useState,
 } from "react";
 
@@ -625,6 +626,69 @@ export function ManualJobImport({
   >(null);
 
 
+  useEffect(() => {
+    function handleSearchJobForAnalysis(
+      event: Event
+    ) {
+      const customEvent =
+        event as CustomEvent<{
+          sourceUrl?: string | null;
+        }>;
+
+      const sourceUrl =
+        customEvent.detail
+          ?.sourceUrl
+          ?.trim();
+
+      if (!sourceUrl) {
+        return;
+      }
+
+      setUrl(
+        sourceUrl
+      );
+
+      setManualDescription(
+        ""
+      );
+
+      setShowDescriptionFallback(
+        false
+      );
+
+      setError(
+        null
+      );
+
+      setPreview(
+        null
+      );
+
+      setImported(
+        null
+      );
+
+      setAnalysis(
+        null
+      );
+    }
+
+
+    window.addEventListener(
+      "careerlens:analyse-search-job",
+      handleSearchJobForAnalysis
+    );
+
+
+    return () => {
+      window.removeEventListener(
+        "careerlens:analyse-search-job",
+        handleSearchJobForAnalysis
+      );
+    };
+  }, []);
+
+
   async function getAccessToken() {
     const supabase =
       createClient();
@@ -1126,6 +1190,7 @@ export function ManualJobImport({
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
 
                 <input
+                  id="careercompass-manual-job-url"
                   type="url"
                   value={
                     url
@@ -1167,6 +1232,23 @@ export function ManualJobImport({
                       : "Read Job Listing"
                   }
                 </button>
+
+
+                {
+                  url.trim()
+                  && (
+                    <a
+                      href={
+                        url.trim()
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-white/25"
+                    >
+                      View Job Posting
+                    </a>
+                  )
+                }
 
 
                 <button
