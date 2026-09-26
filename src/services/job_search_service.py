@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy import text
 
 from src.collection.database import (
     create_database_engine,
@@ -22,6 +23,10 @@ from src.collection.providers.jooble import (
 
 from src.collection.providers.serpapi import (
     search_serpapi,
+)
+
+from src.collection.providers.web_discovery import (
+    search_web_discovery,
 )
 
 
@@ -118,8 +123,27 @@ def run_job_search(
 
     provider_results = []
 
+    effective_providers = list(providers)
 
-    for provider_name in providers:
+    web_discovery_enabled = (
+        os.getenv(
+            "WEB_DISCOVERY_ENABLED",
+            "true",
+        ).strip().lower()
+        not in {"0", "false", "no", "off"}
+    )
+
+    if (
+        web_discovery_enabled
+        and "serpapi" in providers
+        and "web_discovery" not in effective_providers
+    ):
+        effective_providers.append(
+            "web_discovery"
+        )
+
+
+    for provider_name in effective_providers:
 
         provider_directory = (
             raw_root
@@ -198,6 +222,60 @@ def run_job_search(
                     country,
                     api_key,
                     pages,
+                )
+            )
+
+
+        elif provider_name == "web_discovery":
+
+            api_key = os.getenv(
+                "SERPAPI_API_KEY"
+            )
+
+            if not api_key:
+
+                with engine.begin() as connection:
+
+                    finish_source_run(
+                        connection,
+                        source_search_run_id,
+                        "skipped",
+                        None,
+                        0,
+                        0,
+                        "SERPAPI_API_KEY missing",
+                    )
+
+                provider_results.append(
+                    {
+                        "provider":
+                            provider_name,
+
+                        "status":
+                            "skipped",
+
+                        "pages_fetched":
+                            0,
+
+                        "jobs_returned":
+                            0,
+
+                        "error":
+                            (
+                                "SERPAPI_API_KEY "
+                                "missing"
+                            ),
+                    }
+                )
+
+                continue
+
+            provider_pages = (
+                search_web_discovery(
+                    query,
+                    location,
+                    country,
+                    api_key,
                 )
             )
 
@@ -324,9 +402,54 @@ def run_job_search(
 
                         result_rank += 1
 
-                        job_id = upsert_job(
-                            connection,
-                            job,
+                        existing_job_id = None
+
+                        if provider_name == "web_discovery":
+                            existing_job_id = (
+                                connection.execute(
+                                    text(
+                                        """
+                                        SELECT j.job_id
+                                        FROM jobs j
+                                        JOIN source_search_results ssres
+                                            ON ssres.job_id = j.job_id
+                                        JOIN source_search_runs ssr
+                                            ON ssr.source_search_run_id =
+                                               ssres.source_search_run_id
+                                        WHERE
+                                            ssr.search_request_id =
+                                                :search_request_id
+                                            AND LOWER(
+                                                REGEXP_REPLACE(
+                                                    SPLIT_PART(j.job_url, '?', 1),
+                                                    '/+$',
+                                                    ''
+                                                )
+                                            ) = LOWER(
+                                                REGEXP_REPLACE(
+                                                    SPLIT_PART(:job_url, '?', 1),
+                                                    '/+$',
+                                                    ''
+                                                )
+                                            )
+                                        LIMIT 1;
+                                        """
+                                    ),
+                                    {
+                                        "search_request_id":
+                                            search_request_id,
+                                        "job_url":
+                                            job.job_url,
+                                    },
+                                ).scalar_one_or_none()
+                            )
+
+                        job_id = (
+                            existing_job_id
+                            or upsert_job(
+                                connection,
+                                job,
+                            )
                         )
 
 
