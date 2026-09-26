@@ -1349,10 +1349,10 @@ export function ManualJobImport({
                 && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                     <span className="font-bold">Job found through CareerCompass Search —</span>{" "}
-                    Click <span className="font-semibold">View Job Posting</span> and paste the full job description below,
-                    or find the official job listing on the company&apos;s website and paste its URL above.
+                    CareerCompass will try to read the job listing automatically. If an error occurs or the full posting cannot be read,
+                    paste the full job description below or open the official job posting on the company&apos;s website and paste the new URL above.
                     <span className="mt-2 block text-xs italic">
-                      Some job-search provider links, including Jooble listings, may not allow CareerLens to read the complete posting directly.
+                      You only need to do this when the search result link cannot be read completely.
                     </span>
                   </div>
                 )

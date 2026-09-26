@@ -792,7 +792,7 @@ export function ApplicationResumeComparison({
           <button
             type="button"
             onClick={() => setDetailsVisible(false)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-lg border border-[#0A66C2] bg-[#0A66C2] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#004182]"
           >
             Hide Details
           </button>
@@ -1043,6 +1043,16 @@ export function ApplicationResumeComparison({
           )}
         </>
       )}
+
+      <div className="border-t border-slate-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setDetailsVisible(false)}
+          className="w-full rounded-lg border border-[#0A66C2] bg-[#0A66C2] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#004182]"
+        >
+          Hide Details
+        </button>
+      </div>
     </div>
   );
 }
