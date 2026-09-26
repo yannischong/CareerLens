@@ -571,6 +571,14 @@ export function ManualJobImport({
 
 
   const [
+    cameFromJobSearch,
+    setCameFromJobSearch,
+  ] = useState(
+    false
+  );
+
+
+  const [
     loading,
     setLoading,
   ] = useState(
@@ -652,8 +660,12 @@ export function ManualJobImport({
         ""
       );
 
+      setCameFromJobSearch(
+        true
+      );
+
       setShowDescriptionFallback(
-        false
+        true
       );
 
       setError(
@@ -1201,6 +1213,10 @@ export function ManualJobImport({
                         event.target.value
                       );
 
+                      setCameFromJobSearch(
+                        false
+                      );
+
                       resetImportedState();
                     }
                   }
@@ -1262,6 +1278,19 @@ export function ManualJobImport({
                 </button>
 
               </div>
+
+
+              {
+                cameFromJobSearch
+                && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <span className="font-bold">Job found through CareerLens Search:</span>{" "}
+                    open the actual job posting using <span className="font-semibold">View Job Posting</span>,
+                    then paste the full job description below before reading the listing. Some job-search
+                    provider links, including Jooble listings, may not let CareerLens read the complete posting directly.
+                  </div>
+                )
+              }
 
 
               <button
