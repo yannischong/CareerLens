@@ -1069,20 +1069,42 @@ export function ManualJobImport({
         data as ManualJobImportResult;
 
 
-      setImported(
-        importResult
+      const {
+        response: opportunityResponse,
+        data: opportunityData,
+      } = await authenticatedPost(
+        "/api/opportunities",
+        {
+          job_id: importResult.job.job_id,
+          source_search_request_id: null,
+          priority: "medium",
+          notes: null,
+        }
       );
 
-      setAnalysis(
-        null
+
+      if (!opportunityResponse.ok) {
+        throw new Error(
+          typeof opportunityData.detail
+          === "string"
+            ? opportunityData.detail
+            : (
+              "The listing was analysed, but CareerCompass could not save it to My Applications."
+            )
+        );
+      }
+
+
+      setImported(
+        importResult
       );
 
 
       if (onOpportunitySaved) {
         void onOpportunitySaved().catch(
           () => {
-            // Saving has already succeeded on the backend.
-            // The dashboard can recover on its next refresh.
+            // The opportunity is already persisted. A later dashboard
+            // refresh will recover if this immediate refresh fails.
           }
         );
       }
