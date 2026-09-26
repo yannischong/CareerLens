@@ -19,10 +19,6 @@ const DEFAULT_API_URL =
   "https://careercompass-api-2v4r.onrender.com";
 
 
-const ANALYSER_DRAFT_STORAGE_KEY =
-  "careercompass:manual-job-analyser-draft:v1";
-
-
 function getApiBaseUrl() {
   const configured =
     process.env
@@ -638,86 +634,6 @@ export function ManualJobImport({
   >(null);
 
 
-  const [
-    draftRestored,
-    setDraftRestored,
-  ] = useState(
-    false
-  );
-
-
-  useEffect(() => {
-    try {
-      const stored =
-        window.localStorage.getItem(
-          ANALYSER_DRAFT_STORAGE_KEY
-        );
-
-      if (stored) {
-        const draft =
-          JSON.parse(stored) as {
-            url?: string;
-            manualDescription?: string;
-            showDescriptionFallback?: boolean;
-            cameFromJobSearch?: boolean;
-            preview?: ManualJobPreview | null;
-            imported?: ManualJobImportResult | null;
-            analysis?: ManualJobAnalysis | null;
-          };
-
-        setUrl(draft.url ?? "");
-        setManualDescription(
-          draft.manualDescription ?? ""
-        );
-        setShowDescriptionFallback(
-          draft.showDescriptionFallback ?? false
-        );
-        setCameFromJobSearch(
-          draft.cameFromJobSearch ?? false
-        );
-        setPreview(draft.preview ?? null);
-        setImported(draft.imported ?? null);
-        setAnalysis(draft.analysis ?? null);
-      }
-    } catch {
-      window.localStorage.removeItem(
-        ANALYSER_DRAFT_STORAGE_KEY
-      );
-    } finally {
-      setDraftRestored(true);
-    }
-  }, []);
-
-
-  useEffect(() => {
-    if (!draftRestored) {
-      return;
-    }
-
-    window.localStorage.setItem(
-      ANALYSER_DRAFT_STORAGE_KEY,
-      JSON.stringify({
-        url,
-        manualDescription,
-        showDescriptionFallback,
-        cameFromJobSearch,
-        preview,
-        imported,
-        analysis,
-      })
-    );
-  }, [
-    draftRestored,
-    url,
-    manualDescription,
-    showDescriptionFallback,
-    cameFromJobSearch,
-    preview,
-    imported,
-    analysis,
-  ]);
-
-
   useEffect(() => {
     function handleSearchJobForAnalysis(
       event: Event
@@ -884,6 +800,41 @@ export function ManualJobImport({
       null
     );
 
+  }
+
+
+  function handleCloseListing() {
+    setUrl(
+      ""
+    );
+
+    setManualDescription(
+      ""
+    );
+
+    setShowDescriptionFallback(
+      false
+    );
+
+    setCameFromJobSearch(
+      false
+    );
+
+    setPreview(
+      null
+    );
+
+    setImported(
+      null
+    );
+
+    setAnalysis(
+      null
+    );
+
+    setError(
+      null
+    );
   }
 
 
@@ -2130,6 +2081,18 @@ export function ManualJobImport({
                       </div>
                     )
                   }
+
+
+                  <div className="mt-5 border-t border-slate-200 pt-4">
+                    <button
+                      type="button"
+                      onClick={handleCloseListing}
+                      disabled={loading || importing || analyzing}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Close Listing
+                    </button>
+                  </div>
 
                 </div>
               )
