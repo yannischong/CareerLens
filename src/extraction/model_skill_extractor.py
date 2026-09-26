@@ -39,7 +39,7 @@ TRUE_VALUES = {
 
 SYSTEM_INSTRUCTIONS = """You extract job-relevant skills from job advertisements for a career-matching product.
 
-Return only skills that are directly supported by the supplied candidate-focused sections. The product is occupation-agnostic, so recognize finance, business, software, data, engineering, marketing, HR, operations, legal, risk, sales and other professional skills.
+Return only skills and candidate eligibility/prerequisite requirements that are directly supported by the supplied candidate-focused sections. The product is occupation-agnostic, so recognize finance, business, software, data, engineering, marketing, HR, operations, legal, risk, sales and other professional skills.
 
 A hard skill is a tool, software product, programming language, technical method, analytical technique, professional/domain competency, process/framework, regulatory/compliance competency, or other learnable job-specific capability. Examples include SQL, Excel, financial modelling, third-party risk management, due diligence, risk assessment, regulatory compliance, contract negotiation, recruitment, SEO and AutoCAD.
 
@@ -51,7 +51,11 @@ Prefer concise canonical names. Normalize common abbreviations and expanded form
 
 Do not invent a skill merely because it would probably be useful for the role. Responsibility sections may provide evidence of skills, but only extract the competency actually demonstrated by the action. For example, 'assess third-party risks' can support 'Risk Assessment' and 'Third-Party Risk Management'; 'prepare reports' alone should not become a vague 'Reporting' skill unless the surrounding text makes a specific professional competency clear.
 
-For each skill, return a short exact evidence excerpt copied from the supplied section. Never use text from ignored company, benefits, application or legal sections because those sections are not supplied to you.
+For eligibility, extract every concrete candidate prerequisite or logistical constraint that affects whether someone can apply or take the role. This includes years/type of experience, education level and field of study, current student status/year of study, graduation year or graduation window, internship duration/commitment, availability/start dates, full-time/part-time availability, work authorization/citizenship/visa constraints, required languages, certifications/licences/professional registration, security clearance, and physical requirements.
+
+Do not infer missing details. Do not turn role location, ordinary employment type, responsibilities, benefits, employer descriptions, or application instructions into eligibility. For example, a role being labelled "Full-time" is not by itself a candidate availability requirement; "must be available full-time for 6 months" is. Preserve meaningful qualifiers such as minimum/maximum, preferred vs required, dates, durations, degree disciplines and alternative conditions.
+
+For each skill and eligibility item, return a short exact evidence excerpt copied from the supplied section. Never use text from ignored company, benefits, application or legal sections because those sections are not supplied to you.
 """
 
 
@@ -92,10 +96,40 @@ OUTPUT_SCHEMA = {
                 ],
                 "additionalProperties": False,
             },
+        },
+        "eligibility": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "section_index": {"type": "integer"},
+                    "requirement_type": {
+                        "type": "string",
+                        "enum": [
+                            "experience", "education", "work_authorization",
+                            "availability", "language", "certification",
+                            "professional_registration", "licence",
+                            "security_clearance", "physical_requirement"
+                        ]
+                    },
+                    "evidence": {"type": "string"},
+                    "requirement_level": {
+                        "type": "string",
+                        "enum": ["required", "preferred", "unknown"]
+                    },
+                    "confidence": {"type": "number"}
+                },
+                "required": [
+                    "section_index", "requirement_type", "evidence",
+                    "requirement_level", "confidence"
+                ],
+                "additionalProperties": False
+            }
         }
     },
     "required": [
         "skills",
+        "eligibility",
     ],
     "additionalProperties": False,
 }
@@ -374,9 +408,7 @@ def _call_openai(
         text_value
     )
 
-    return parsed.get(
-        "skills"
-    ) or []
+    return parsed
 
 
 def _clean_model_skill(
@@ -592,9 +624,11 @@ def enrich_manual_requirement_mentions(
     print(start_message, flush=True)
 
     try:
-        model_skills = _call_openai(
+        model_result = _call_openai(
             sections
         )
+        model_skills = model_result.get("skills") or []
+        model_eligibility = model_result.get("eligibility") or []
 
     except Exception as exc:
         failure_message = (
@@ -607,7 +641,8 @@ def enrich_manual_requirement_mentions(
 
     success_message = (
         "[CareerLens skill model] succeeded with "
-        f"{len(model_skills)} raw skill candidates."
+        f"{len(model_skills)} raw skill candidates and "
+        f"{len(model_eligibility)} eligibility candidates."
     )
     logger.info(success_message)
     print(success_message, flush=True)
@@ -801,5 +836,78 @@ def enrich_manual_requirement_mentions(
                 mention,
                 skill,
             )
+
+    # A successful model review is authoritative for eligibility-like
+    # requirements in the reviewed candidate-focused sections. Remove broad
+    # regex eligibility hits from those sections, then rebuild them from
+    # model-verified exact evidence. This improves recall while preventing
+    # keyword false positives (for example an incidental mention of a degree).
+    eligibility_types = {
+        "experience", "education", "work_authorization", "availability",
+        "language", "certification", "professional_registration",
+        "licence", "security_clearance", "physical_requirement",
+    }
+
+    reviewed_text = "\n".join(section.text for section in sections).casefold()
+    mentions = [
+        mention for mention in mentions
+        if not (
+            mention.requirement_type in eligibility_types
+            and mention.raw_text.casefold() in reviewed_text
+        )
+    ]
+
+    existing_eligibility = {
+        (mention.requirement_type, mention.normalized_text)
+        for mention in mentions
+        if mention.requirement_type in eligibility_types
+    }
+
+    for item in model_eligibility:
+        requirement_type = str(item.get("requirement_type", "")).strip()
+        evidence = str(item.get("evidence", "")).strip()
+        requirement_level = str(item.get("requirement_level", "unknown")).strip()
+        try:
+            confidence = float(item.get("confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+
+        section_index = item.get("section_index")
+        if requirement_type not in eligibility_types or not evidence or confidence < 0.70:
+            continue
+        if not isinstance(section_index, int) or not (0 <= section_index < len(sections)):
+            continue
+
+        section = sections[section_index]
+        # Exact-evidence validation is the anti-hallucination gate.
+        if evidence.casefold() not in section.text.casefold():
+            continue
+        if requirement_level not in {"required", "preferred", "unknown"}:
+            requirement_level = "unknown"
+        if requirement_level == "unknown":
+            requirement_level = _section_level(section)
+
+        normalized = normalize_requirement_text(evidence)
+        key = (requirement_type, normalized)
+        if key in existing_eligibility:
+            continue
+
+        mentions.append(
+            RequirementMention(
+                requirement_type=requirement_type,
+                raw_text=evidence,
+                normalized_text=normalized,
+                requirement_level=requirement_level,
+                rule_name="model_verified_eligibility",
+                structured_value={
+                    **section.metadata(),
+                    "model_eligibility_processed": True,
+                    "model_eligibility_provider": "openai",
+                    "model_eligibility_model": _model_name(),
+                    "model_confidence": min(confidence, 1.0),
+                },
+            )
+        )
+        existing_eligibility.add(key)
 
     return mentions
