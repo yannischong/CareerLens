@@ -19,6 +19,10 @@ const DEFAULT_API_URL =
   "https://careercompass-api-2v4r.onrender.com";
 
 
+const ANALYSER_DRAFT_STORAGE_KEY =
+  "careercompass:manual-job-analyser-draft:v1";
+
+
 function getApiBaseUrl() {
   const configured =
     process.env
@@ -634,6 +638,86 @@ export function ManualJobImport({
   >(null);
 
 
+  const [
+    draftRestored,
+    setDraftRestored,
+  ] = useState(
+    false
+  );
+
+
+  useEffect(() => {
+    try {
+      const stored =
+        window.localStorage.getItem(
+          ANALYSER_DRAFT_STORAGE_KEY
+        );
+
+      if (stored) {
+        const draft =
+          JSON.parse(stored) as {
+            url?: string;
+            manualDescription?: string;
+            showDescriptionFallback?: boolean;
+            cameFromJobSearch?: boolean;
+            preview?: ManualJobPreview | null;
+            imported?: ManualJobImportResult | null;
+            analysis?: ManualJobAnalysis | null;
+          };
+
+        setUrl(draft.url ?? "");
+        setManualDescription(
+          draft.manualDescription ?? ""
+        );
+        setShowDescriptionFallback(
+          draft.showDescriptionFallback ?? false
+        );
+        setCameFromJobSearch(
+          draft.cameFromJobSearch ?? false
+        );
+        setPreview(draft.preview ?? null);
+        setImported(draft.imported ?? null);
+        setAnalysis(draft.analysis ?? null);
+      }
+    } catch {
+      window.localStorage.removeItem(
+        ANALYSER_DRAFT_STORAGE_KEY
+      );
+    } finally {
+      setDraftRestored(true);
+    }
+  }, []);
+
+
+  useEffect(() => {
+    if (!draftRestored) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      ANALYSER_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        url,
+        manualDescription,
+        showDescriptionFallback,
+        cameFromJobSearch,
+        preview,
+        imported,
+        analysis,
+      })
+    );
+  }, [
+    draftRestored,
+    url,
+    manualDescription,
+    showDescriptionFallback,
+    cameFromJobSearch,
+    preview,
+    imported,
+    analysis,
+  ]);
+
+
   useEffect(() => {
     function handleSearchJobForAnalysis(
       event: Event
@@ -995,11 +1079,12 @@ export function ManualJobImport({
 
 
       if (onOpportunitySaved) {
-        try {
-          await onOpportunitySaved();
-        } catch {
-          // The role is already saved. A later dashboard refresh can recover.
-        }
+        void onOpportunitySaved().catch(
+          () => {
+            // Saving has already succeeded on the backend.
+            // The dashboard can recover on its next refresh.
+          }
+        );
       }
 
     } catch (err) {
@@ -1020,9 +1105,11 @@ export function ManualJobImport({
 
   async function handleAnalyze() {
     if (!imported) {
-      setError(
-        "Add this role to My Applications before comparing it with your resume."
-      );
+      const message =
+        "Add this role to My Applications before comparing it with your resume.";
+
+      setError(message);
+      window.alert(message);
       return;
     }
 
@@ -1217,6 +1304,10 @@ export function ManualJobImport({
                         false
                       );
 
+                      setPreview(
+                        null
+                      );
+
                       resetImportedState();
                     }
                   }
@@ -1322,6 +1413,10 @@ export function ManualJobImport({
                       (event) => {
                         setManualDescription(
                           event.target.value
+                        );
+
+                        setPreview(
+                          null
                         );
 
                         resetImportedState();
