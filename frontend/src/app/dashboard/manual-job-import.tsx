@@ -3,6 +3,7 @@
 import {
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -632,6 +633,27 @@ export function ManualJobImport({
   ] = useState<
     ManualJobAnalysis | null
   >(null);
+
+
+  const previewOutcomeRef = useRef<HTMLDivElement | null>(null);
+
+
+  useEffect(() => {
+    if (!preview && !error) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      previewOutcomeRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [preview, error]);
 
 
   useEffect(() => {
@@ -1407,6 +1429,9 @@ export function ManualJobImport({
           </form>
 
         </div>
+
+
+            <div ref={previewOutcomeRef} className="scroll-mt-6" />
 
 
             {

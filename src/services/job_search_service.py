@@ -39,6 +39,53 @@ VALID_PROVIDERS = {
 }
 
 
+def _find_existing_search_job(
+    connection,
+    search_request_id,
+    job,
+):
+    """Reuse one search card when providers identify the same vacancy."""
+    title = (job.title or "").strip()
+    company = (job.company_name or "").strip()
+
+    return connection.execute(
+        text(
+            """
+            SELECT j.job_id
+            FROM jobs j
+            JOIN source_search_results ssres
+                ON ssres.job_id = j.job_id
+            JOIN source_search_runs ssr
+                ON ssr.source_search_run_id = ssres.source_search_run_id
+            WHERE ssr.search_request_id = :search_request_id
+              AND (
+                    LOWER(REGEXP_REPLACE(SPLIT_PART(j.job_url, '?', 1), '/+$', ''))
+                        = LOWER(REGEXP_REPLACE(SPLIT_PART(:job_url, '?', 1), '/+$', ''))
+                    OR (
+                        :company_is_meaningful
+                        AND LOWER(TRIM(j.raw_title)) = LOWER(TRIM(:title))
+                        AND LOWER(TRIM(j.raw_company_name)) = LOWER(TRIM(:company))
+                    )
+                  )
+            ORDER BY
+                CASE WHEN j.source = 'SerpApi Web Discovery' THEN 0 ELSE 1 END,
+                j.job_id
+            LIMIT 1;
+            """
+        ),
+        {
+            "search_request_id": search_request_id,
+            "job_url": job.job_url,
+            "title": title,
+            "company": company,
+            "company_is_meaningful": bool(
+                company
+                and not company.lower().startswith("unknown company")
+            ),
+        },
+    ).scalar_one_or_none()
+
+
 def run_job_search(
     query,
     location="Singapore",
@@ -138,8 +185,9 @@ def run_job_search(
         and "serpapi" in providers
         and "web_discovery" not in effective_providers
     ):
-        effective_providers.append(
-            "web_discovery"
+        effective_providers.insert(
+            0,
+            "web_discovery",
         )
 
 
@@ -402,47 +450,13 @@ def run_job_search(
 
                         result_rank += 1
 
-                        existing_job_id = None
-
-                        if provider_name == "web_discovery":
-                            existing_job_id = (
-                                connection.execute(
-                                    text(
-                                        """
-                                        SELECT j.job_id
-                                        FROM jobs j
-                                        JOIN source_search_results ssres
-                                            ON ssres.job_id = j.job_id
-                                        JOIN source_search_runs ssr
-                                            ON ssr.source_search_run_id =
-                                               ssres.source_search_run_id
-                                        WHERE
-                                            ssr.search_request_id =
-                                                :search_request_id
-                                            AND LOWER(
-                                                REGEXP_REPLACE(
-                                                    SPLIT_PART(j.job_url, '?', 1),
-                                                    '/+$',
-                                                    ''
-                                                )
-                                            ) = LOWER(
-                                                REGEXP_REPLACE(
-                                                    SPLIT_PART(:job_url, '?', 1),
-                                                    '/+$',
-                                                    ''
-                                                )
-                                            )
-                                        LIMIT 1;
-                                        """
-                                    ),
-                                    {
-                                        "search_request_id":
-                                            search_request_id,
-                                        "job_url":
-                                            job.job_url,
-                                    },
-                                ).scalar_one_or_none()
+                        existing_job_id = (
+                            _find_existing_search_job(
+                                connection,
+                                search_request_id,
+                                job,
                             )
+                        )
 
                         job_id = (
                             existing_job_id
